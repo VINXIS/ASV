@@ -159,6 +159,15 @@ export function updateSettings(key: keyof typeof settings.value, value: string |
     settings.setKey(key, value);
 }
 
+export function toggleStrain(i: number) {
+    const strainArr = strains.get();
+    if (!strainArr[i])
+        throw new Error(`Strain at index ${i} does not exist.`);
+
+    strainArr[i].visible = !strainArr[i].visible;
+    strains.set(strainArr);
+}
+
 export const filteredStrains = computed([strains, settings], (strains, settings) => {
     return strains.map(strain => {
         for (const eventType of eventTypes) {

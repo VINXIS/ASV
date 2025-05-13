@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { strains as strainsRef, settings as settingsRef, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, filteredStrains as filteredStrainsRef } from "../store/data";
+    import { strains as strainsRef, settings as settingsRef, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, filteredStrains as filteredStrainsRef, toggleStrain } from "../store/data";
 
     let canvas: HTMLCanvasElement | null = $state(null);
     let tooltip: HTMLDivElement | null = $state(null);
@@ -132,81 +132,81 @@
             
             // Draw gene regions
             ctx.fillStyle = strain.colour;
-            
-            filteredStrains.forEach(strain => {
-                const events = settings.selectedEvent === "All" ? [...strain.SE, ...strain.MXE, ...strain.A3SS, ...strain.A5SS, ...strain.RI] : strain[settings.selectedEvent];
-                events.forEach(event => {
-                    // Extract coordinates based on splicing type
-                    const positions = getPositionsFromData(event);
-                    const startPos = positions.start;
-                    const endPos = positions.end;
+
+            const events = settings.selectedEvent === "All" ? [...strain.SE, ...strain.MXE, ...strain.A3SS, ...strain.A5SS, ...strain.RI] : strain[settings.selectedEvent];
+            events.forEach(event => {
+                // Extract coordinates based on splicing type
+                const positions = getPositionsFromData(event);
+                const startPos = positions.start;
+                const endPos = positions.end;
+                
+                // Only draw if within visible range and has valid positions
+                if (isFinite(startPos) && isFinite(endPos) && startPos <= adjustedMax && endPos >= adjustedMin) {
+                    const x1 = Math.max(0, (startPos - adjustedMin) * scale);
+                    const x2 = Math.min(canvas!.width, (endPos - adjustedMin) * scale);
                     
-                    // Only draw if within visible range and has valid positions
-                    if (isFinite(startPos) && isFinite(endPos) && startPos <= adjustedMax && endPos >= adjustedMin) {
-                        const x1 = Math.max(0, (startPos - adjustedMin) * scale);
-                        const x2 = Math.min(canvas!.width, (endPos - adjustedMin) * scale);
+                    ctx.fillRect(x1, lineY - lineHeight * 2, x2 - x1, lineHeight * 4);
+                    
+                    // Store gene region for hover detection
+                    geneRegions.push({
+                        x1,
+                        x2,
+                        y1: lineY - lineHeight * 2,
+                        y2: lineY + lineHeight * 2,
+                        data: event,
+                        strain: strain.name,
+                    });
+                    
+                    // Add gene labels (only for important genes and not too crowded)
+                    const geneId = event.geneName || event.geneID;
+                    if (geneId && geneLabels.length < 100) {
+                        const centerX = (x1 + x2) / 2;
                         
-                        ctx.fillRect(x1, lineY - lineHeight * 2, x2 - x1, lineHeight * 4);
+                        // Calculate actual text width using the canvas context
+                        const textWidth = event.textWidth || ctx.measureText(geneId).width;
                         
-                        // Store gene region for hover detection
-                        geneRegions.push({
-                            x1,
-                            x2,
-                            y1: lineY - lineHeight * 2,
-                            y2: lineY + lineHeight * 2,
-                            data: event,
-                            strain: strain.name,
-                        });
-                        
-                        // Add gene labels (only for important genes and not too crowded)
-                        const geneId = event.geneName || event.geneID;
-                        if (geneId && geneLabels.length < 100) {
-                            const centerX = (x1 + x2) / 2;
+                        // Check if we already have a label near this position
+                        let tooClose = false;
+                        for (let i = 0; i < geneLabels.length; i++) {
+                            // Use the actual width of the existing label
+                            const existingTextWidth = geneLabels[i].textWidth;
                             
-                            // Calculate actual text width using the canvas context
-                            const textWidth = event.textWidth || ctx.measureText(geneId).width;
+                            // Check if the labels would overlap or be too close
+                            const minSpaceBetween = 5; // Minimum pixels between labels
+                            const existingStart = geneLabels[i].x - existingTextWidth/2;
+                            const existingEnd = geneLabels[i].x + existingTextWidth/2;
+                            const newStart = centerX - textWidth/2;
+                            const newEnd = centerX + textWidth/2;
                             
-                            // Check if we already have a label near this position
-                            let tooClose = false;
-                            for (let i = 0; i < geneLabels.length; i++) {
-                                // Use the actual width of the existing label
-                                const existingTextWidth = geneLabels[i].textWidth;
-                                
-                                // Check if the labels would overlap or be too close
-                                const minSpaceBetween = 5; // Minimum pixels between labels
-                                const existingStart = geneLabels[i].x - existingTextWidth/2;
-                                const existingEnd = geneLabels[i].x + existingTextWidth/2;
-                                const newStart = centerX - textWidth/2;
-                                const newEnd = centerX + textWidth/2;
-                                
-                                // Check horizontal overlap plus buffer
-                                const horizontalOverlap = (
-                                    (newStart <= existingEnd + minSpaceBetween) && 
-                                    (newEnd >= existingStart - minSpaceBetween)
-                                );
-                                
-                                // Check vertical proximity
-                                const verticalProximity = Math.abs(geneLabels[i].y - (lineY + 10)) < 15;
-                                
-                                if (horizontalOverlap && verticalProximity) {
-                                    tooClose = true;
-                                    break;
-                                }
+                            // Check horizontal overlap plus buffer
+                            const horizontalOverlap = (
+                                (newStart <= existingEnd + minSpaceBetween) && 
+                                (newEnd >= existingStart - minSpaceBetween)
+                            );
+                            
+                            // Check vertical proximity
+                            const verticalProximity = Math.abs(geneLabels[i].y - (lineY + 10)) < 15;
+                            
+                            if (horizontalOverlap && verticalProximity) {
+                                tooClose = true;
+                                break;
                             }
-                            
-                            if (!tooClose)
-                                geneLabels.push({
-                                    text: geneId,
-                                    textWidth,
-                                    x: centerX,
-                                    y: lineY + 15,
-                                    data: event,
-                                    strain: strain.name,
-                                });
                         }
+                        
+                        if (!tooClose)
+                            geneLabels.push({
+                                text: geneId,
+                                textWidth,
+                                x: centerX,
+                                y: lineY + 15,
+                                data: event,
+                                strain: strain.name,
+                            });
                     }
-                });
+                }
             });
+
+            console.log("Gene regions:", geneRegions);
         }
         
         // Draw gene labels
@@ -414,21 +414,23 @@
         renderVisualization();
     }
 
-    $effect(() => {
-        canvas;
-        settings;
-        strains;
-        filteredStrains;
-        renderVisualization();
-    });
+    $effect(() => renderVisualization());
 </script>
 
 {#if strains.length > 0}
     <div class="visualization_box">
         <div class="legend">
-            {#each strains as strain}
-                <div>
-                    <span class="color-box" style="background-color: {strain.colour};"></span> {strain.name}
+            {#each strains as strain, i}
+                <div
+                    onclick={() => toggleStrain(i)}
+                    onkeydown={() => toggleStrain(i)}
+                    tabindex="-1"
+                    role="button"
+                >
+                    <span
+                        class="color-box"
+                        style="background-color: {strain.colour}; display: {strain.visible ? 'inline-block' : 'none'}"
+                    ></span> {strain.name}
                 </div>
             {/each}
         </div>
@@ -473,6 +475,7 @@
     display: flex;
     align-items: center;
     margin-right: 15px;
+    cursor: pointer;
 }
 
 .color-box {
