@@ -1,0 +1,24 @@
+---
+import "../styles/main.css";
+import Submit from "../components/submit.svelte";
+import Settings from "../components/settings.svelte";
+import Transcriptome from "../components/transcriptome.svelte";
+---
+
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<!-- <link rel="icon" type="image/svg+xml" href="/favicon.svg" /> -->
+		<meta name="generator" content={Astro.generator} />
+		<link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&display=swap" rel="stylesheet">
+		<title>Alternative Splicing Visualizer</title>
+	</head>
+	<body>
+		<h1>ASV | <a href="https://github.com/VINXIS/ASV">GitHub</a></h1>
+		<h2>Alternative Splicing Visualizer</h2>
+		<Submit client:only="svelte" />
+		<Settings client:only="svelte" />
+		<Transcriptome client:only="svelte" />
+	</body>
+</html>
