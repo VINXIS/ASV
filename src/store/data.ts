@@ -162,7 +162,6 @@ export function updateSettings(key: keyof typeof settings.value, value: string |
 export const filteredStrains = computed([strains, settings], (strains, settings) => {
     return strains.map(strain => {
         for (const eventType of eventTypes) {
-            console.log(eventType, strain[eventType]);
             if (settings.selectedEvent !== "All" && settings.selectedEvent !== eventType)
                 continue;
 
@@ -175,7 +174,6 @@ export const filteredStrains = computed([strains, settings], (strains, settings)
                 const limitCheck = settings.extraneousPsiLimits === false || event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95;
                 return readTypeCheck && chromosomeCheck && fdrthresholdCheck && incLevelCheck && readCountCheck && limitCheck;
             }) as any[];
-            console.log(eventType, strain[eventType]);
         }
         return strain;
     });

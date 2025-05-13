@@ -73,7 +73,6 @@
         geneRegions = [];
         
         filteredStrains.forEach(strain => {
-            console.log(strain);
             for (const eventType of eventTypes) {
                 if (settings.selectedEvent !== "All" && settings.selectedEvent !== eventType)
                     continue;
