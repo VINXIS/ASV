@@ -11,8 +11,6 @@
   "dependencies": {
     "@astrojs/svelte": "^7.0.13",
     "astro": "^5.7.12",
-    "jszip": "^3.10.1",
-    "nanostores": "^1.0.1",
     "svelte": "^5.28.2",
     "typescript": "^5.8.3"
   }

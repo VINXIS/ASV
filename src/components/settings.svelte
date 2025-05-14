@@ -1,15 +1,14 @@
 <script lang="ts">
-    import { strains, settings, updateSettings, chromosomeList } from "../store/data";
+    import { settings, getChromosomeList, resetSettings, getStrains } from "./state.svelte";
 </script>
 
-{#if $strains.length > 0}
+{#if getStrains().length > 0}
     <div id="controls">
         <div class="control-group">
             <label for="splicing-type">Alternative Splicing Type:</label>
             <select
                 id="splicing-type"
-                bind:value={$settings.selectedEvent}
-                on:change={(e) => updateSettings("selectedEvent", $settings.selectedEvent)}
+                bind:value={settings.selectedEvent}
             >
                 <option value="All">All</option>
                 <option value="A3SS">A3SS (Alternative 3' Splice Site)</option>
@@ -24,10 +23,9 @@
             <label for="chromosome">Chromosome:</label>
             <select
                 id="chromosome"
-                bind:value={$settings.selectedChr}
-                on:change={(e) => updateSettings("selectedChr", $settings.selectedChr)}
+                bind:value={settings.selectedChr}
             >
-                {#each $chromosomeList as chromosome}
+                {#each getChromosomeList() as chromosome}
                     <option value={chromosome}>{chromosome}</option>
                 {/each}
             </select>
@@ -37,8 +35,7 @@
             <label for="junction">Junction Read Type:</label>
             <select
                 id="junction"
-                bind:value={$settings.selectedJunctionView}
-                on:change={(e) => updateSettings("selectedJunctionView", $settings.selectedJunctionView)}
+                bind:value={settings.selectedJunctionView}
             >
                 <option value="JC">Junction Reads Only (JC)</option>
                 <option value="JCEC">Junction + Exon Reads (JCEC)</option>
@@ -53,10 +50,9 @@
                 min="0"
                 max="1000"
                 step="1"
-                bind:value={$settings.readCountThresh}
-                on:change={(e) => updateSettings("readCountThresh", $settings.readCountThresh)}
+                bind:value={settings.readCountThresh}
             />
-            <span>{$settings.readCountThresh}</span>
+            <span>{settings.readCountThresh}</span>
         </div>
 
         <div class="control-group">
@@ -67,10 +63,9 @@
                 min="0"
                 max="1"
                 step="0.01"
-                bind:value={$settings.FDRThresh}
-                on:input={(e) => updateSettings("FDRThresh", $settings.FDRThresh)}
+                bind:value={settings.FDRThresh}
             />
-            <span>{$settings.FDRThresh}</span>
+            <span>{settings.FDRThresh}</span>
         </div>
 
         <div class="control-group">
@@ -81,10 +76,9 @@
                 min="0"
                 max="1"
                 step="0.01"
-                bind:value={$settings.psiDiffThresh}
-                on:input={(e) => updateSettings("psiDiffThresh", $settings.psiDiffThresh)}
+                bind:value={settings.psiDiffThresh}
             />
-            <span>{$settings.psiDiffThresh}</span>
+            <span>{settings.psiDiffThresh}</span>
         </div>
 
         <div class="control-group">
@@ -92,10 +86,15 @@
             <input
                 type="checkbox"
                 id="limit"
-                bind:checked={$settings.extraneousPsiLimits}
-                on:change={(e) => updateSettings("extraneousPsiLimits", $settings.extraneousPsiLimits)}
+                bind:checked={settings.extraneousPsiLimits}
             />
         </div>
+
+        <button
+            on:click={() => resetSettings()}
+        >
+            Reset Settings
+        </button>
     </div>
 {/if}
 

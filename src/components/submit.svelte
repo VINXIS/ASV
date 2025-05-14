@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { strains, type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type ReadType, type EventType, type Event as ASEvent } from "../store/data";
+    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type ReadType, type EventType, type Event as ASEvent, getStrains, setStrains } from "./state.svelte";
     import { average, parseNumberArray } from "../../utils/numbers";
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { getRandomColor } from "../../utils/colour";
@@ -180,7 +180,7 @@
         errorMessage = "";
         successMessage = "";
 
-        const extractedStrains: Strain[] = [];
+        const newStrains: Strain[] = [];
         
         try {
             const files = (event.target as HTMLInputElement).files;
@@ -207,11 +207,11 @@
                 }
 
                 // Check if strain already exists
-                const j = extractedStrains.findIndex(strain => strain.name === strainName);
+                const j = newStrains.findIndex(strain => strain.name === strainName);
                 if (j !== -1) {
                     for (const event of events)
                         if (event.eventType)
-                            extractedStrains[j][event.eventType].push(event as any);
+                            newStrains[j][event.eventType].push(event as any);
                 } else { // Create new strain
                     const newStrain: Strain = {
                         name: strainName,
@@ -227,14 +227,14 @@
                         if (event.eventType)
                             newStrain[event.eventType].push(event as any);
 
-                    extractedStrains.push(newStrain);
+                    newStrains.push(newStrain);
                 }
             }
 
             // Check for duplicates between original and new strains, if there are any, confirm overwrite
-            const originalStrains = strains.get();
+            const originalStrains = getStrains();
             const duplicates = originalStrains.filter(originalStrain => 
-                extractedStrains.some(newStrain => originalStrain.name === newStrain.name)
+                newStrains.some(newStrain => originalStrain.name === newStrain.name)
             );
             if (duplicates.length > 0) {
                 const overwrite = confirm(`The following strains already exist and will be overwritten:\n${duplicates.map(strain => `${strain.name}`).join('\n')}\n\nDo you want to proceed?`);
@@ -243,7 +243,7 @@
                     return;
                 }
 
-                // Removing duplicates from original strains
+                // Remove duplicates from old strains
                 for (const duplicate of duplicates) {
                     const index = originalStrains.findIndex(strain => strain.name === duplicate.name);
                     if (index !== -1)
@@ -251,12 +251,12 @@
                 }
             }
             
-            strains.set([
+            setStrains([
                 ...originalStrains,
-                ...extractedStrains
+                ...newStrains
             ]);
 
-            successMessage = `Successfully loaded ${extractedStrains.length} strain(s)`;
+            successMessage = `Successfully loaded ${newStrains.length} strain(s)`;
             folderInput.value = "";
         } catch (e) {
             if (e instanceof Error) {
@@ -296,7 +296,7 @@
 
 <div class="rmats-uploader">
 
-    {#if $strains.length === 0}
+    {#if getStrains().length === 0}
         <h2>Upload rMATS Data</h2>
         <div class="upload-option">
             <h3>Upload folder</h3>
@@ -347,16 +347,20 @@
         </div>
     {/if}
 
-    {#if $strains.length > 0}
+    {#if getStrains().length > 0}
         <h3>Loaded Strains:</h3>
         <ul>
-            {#each $strains as strain}
-                <li>{strain.name}</li>
+            {#each getStrains() as strain}
+                {#if strain.visible}
+                    <li>{strain.name}</li>
+                {:else}
+                    <li style="text-decoration: line-through;">{strain.name}</li>
+                {/if}
             {/each}
         </ul>
     {/if}
 
-    {#if $strains.length === 0}
+    {#if getStrains().length > 0}
         <div class="info">
             <h3>Files Currently Parsed:</h3>
             <ul>

@@ -1,11 +1,8 @@
 <script lang="ts">
-    import { strains as strainsRef, settings as settingsRef, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, filteredStrains as filteredStrainsRef, toggleStrain } from "../store/data";
+    import { settings, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility } from "./state.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
     let tooltip: HTMLDivElement | null = $state(null);
-    let settings = $derived($settingsRef);
-    let strains = $derived($strainsRef);
-    let filteredStrains = $derived($filteredStrainsRef);
 
     let hoveredPoint: { data: ASEvent; strain: string } | null = null;
 
@@ -66,6 +63,8 @@
         canvas.height = canvasHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
+        const filteredStrains = getFilteredStrains();
+
         let minPos = Infinity;
         let maxPos = -Infinity;
         
@@ -207,6 +206,7 @@
             });
 
             console.log("Gene regions:", geneRegions);
+            strainIndex++;
         }
         
         // Draw gene labels
@@ -417,13 +417,13 @@
     $effect(() => renderVisualization());
 </script>
 
-{#if strains.length > 0}
+{#if getStrains().length > 0}
     <div class="visualization_box">
         <div class="legend">
-            {#each strains as strain, i}
+            {#each getStrains() as strain, i}
                 <div
-                    onclick={() => toggleStrain(i)}
-                    onkeydown={() => toggleStrain(i)}
+                    onclick={() => toggleStrainVisibility(i)}
+                    onkeydown={() => toggleStrainVisibility(i)}
                     tabindex="-1"
                     role="button"
                 >

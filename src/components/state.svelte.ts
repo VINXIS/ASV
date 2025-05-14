@@ -1,5 +1,3 @@
-import { atom, computed, map } from "nanostores";
-
 export const eventTypes = [
     "A3SS",
     "A5SS",
@@ -134,8 +132,21 @@ export interface Strain {
     SE: SEEvent[];
 }
 
-export const strains = atom<Strain[]>([]);
-export const settings = map<{
+let strains = $state<Strain[]>([]);
+export function resetStrains() {
+    strains = [];
+}
+export function getStrains() {
+    return strains;
+}
+export function setStrains(newStrains: Strain[]) {
+    strains = newStrains;
+}
+export function toggleStrainVisibility(i: number) {
+    strains[i].visible = !strains[i].visible;
+}
+
+export const settings = $state<{
     selectedChr: string;
     selectedEvent: "All" | EventType;
     selectedJunctionView: ReadType;
@@ -154,27 +165,25 @@ export const settings = map<{
     psiDiffThresh: 0.2,
     extraneousPsiLimits: false,
 });
+export function resetSettings() {
+    settings.selectedChr = "All";
+    settings.selectedEvent = "All";
+    settings.selectedJunctionView = "JCEC";
 
-export function updateSettings(key: keyof typeof settings.value, value: string | number | boolean) {
-    settings.setKey(key, value);
+    settings.readCountThresh = 10;
+    settings.FDRThresh = 0.05;
+    settings.psiDiffThresh = 0.2;
+    settings.extraneousPsiLimits = false;
 }
 
-export function toggleStrain(i: number) {
-    const strainArr = strains.get();
-    if (!strainArr[i])
-        throw new Error(`Strain at index ${i} does not exist.`);
-
-    strainArr[i].visible = !strainArr[i].visible;
-    strains.set(strainArr);
-}
-
-export const filteredStrains = computed([strains, settings], (strains, settings) => {
+const filteredStrains = $derived.by<Strain[]>(() => {
     return strains.map(strain => {
-        for (const eventType of eventTypes) {
-            if (settings.selectedEvent !== "All" && settings.selectedEvent !== eventType)
-                continue;
+        if (!strain.visible) return { ...strain, A3SS: [], A5SS: [], MXE: [], RI: [], SE: [] };
 
-            strain[eventType] = strain[eventType].filter(event => {
+        strain = { ...strain };
+        const typesToProcess = settings.selectedEvent === "All" ? eventTypes : [settings.selectedEvent];
+        for (const eventType of typesToProcess) {
+            strain[eventType] = strain[eventType].filter((event) => {
                 const readTypeCheck = settings.selectedJunctionView === event.readType;
                 const chromosomeCheck = settings.selectedChr === "All" || (event.chr && event.chr.startsWith(settings.selectedChr));
                 const fdrthresholdCheck = event.FDR <= settings.FDRThresh;
@@ -187,11 +196,14 @@ export const filteredStrains = computed([strains, settings], (strains, settings)
         return strain;
     });
 });
+export function getFilteredStrains() {
+    return filteredStrains;
+}
 
-export const chromosomeList = computed(strains, strains => {
+const chromosomeList = $derived.by(() => {
     const chromosomes = new Set<string>();
     chromosomes.add("All");
-    strains.forEach(strain => {
+    Object.values(strains).forEach(strain => {
         strain.A3SS.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
         strain.A5SS.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
         strain.MXE.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
@@ -207,3 +219,6 @@ export const chromosomeList = computed(strains, strains => {
         return a.localeCompare(b);
     });;
 });
+export function getChromosomeList() {
+    return chromosomeList;
+}
