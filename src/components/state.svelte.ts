@@ -135,15 +135,18 @@ export interface Strain {
 let strains = $state<Strain[]>([]);
 export function resetStrains() {
     strains = [];
+    updateSelectFilteredStrains();
 }
 export function getStrains() {
     return strains;
 }
 export function setStrains(newStrains: Strain[]) {
     strains = newStrains;
+    updateSelectFilteredStrains();
 }
 export function toggleStrainVisibility(i: number) {
     strains[i].visible = !strains[i].visible;
+    updateSelectFilteredStrains();
 }
 
 export const settings = $state<{
@@ -174,33 +177,48 @@ export function resetSettings() {
     settings.FDRThresh = 0.05;
     settings.psiDiffThresh = 0.2;
     settings.extraneousPsiLimits = false;
+
+    updateSelectFilteredStrains();
 }
 
-const filteredStrains = $derived.by<Strain[]>(() => {
-    return strains.map(strain => {
-        if (!strain.visible) return { ...strain, A3SS: [], A5SS: [], MXE: [], RI: [], SE: [] };
-
-        strain = { ...strain };
+let selectFilteredStrains: Record<string, { colour: string; events: Event[] }> = {};
+let filteredStrains: Record<string, { colour: string; events: Event[] }> = {};
+export const updatedFilteredStrains = new EventTarget();
+export function updateSelectFilteredStrains() {
+    selectFilteredStrains = {};
+    for (const strain of strains.filter(s => s.visible)) {
+        selectFilteredStrains[strain.name] = { colour: strain.colour, events: [] };
         const typesToProcess = settings.selectedEvent === "All" ? eventTypes : [settings.selectedEvent];
         for (const eventType of typesToProcess) {
-            strain[eventType] = strain[eventType].filter((event) => {
+            selectFilteredStrains[strain.name].events.push(...strain[eventType].filter((event) => {
                 const readTypeCheck = settings.selectedJunctionView === event.readType;
                 const chromosomeCheck = settings.selectedChr === "All" || (event.chr && event.chr.startsWith(settings.selectedChr));
-                const fdrthresholdCheck = event.FDR <= settings.FDRThresh;
-                const incLevelCheck = Math.abs(event.psiDiff) >= settings.psiDiffThresh;
-                const readCountCheck = event.incCount1Avg >= settings.readCountThresh;
                 const limitCheck = settings.extraneousPsiLimits === false || event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95;
-                return readTypeCheck && chromosomeCheck && fdrthresholdCheck && incLevelCheck && readCountCheck && limitCheck;
-            }) as any[];
+                return readTypeCheck && chromosomeCheck && limitCheck;
+            }));
         }
-        return strain;
-    });
-});
+    };
+    updateFilteredStrains()
+}
+export function updateFilteredStrains() {
+    filteredStrains = {};
+    for (const [strainName, strainData] of Object.entries(selectFilteredStrains)) {
+        filteredStrains[strainName] = { colour: strainData.colour, events: [] };
+        for (const event of strainData.events) {
+            const readCountCheck = event.incCount1Avg >= settings.readCountThresh;
+            const FDRCheck = event.FDR <= settings.FDRThresh;
+            const psiDiffCheck = Math.abs(event.psiDiff) >= settings.psiDiffThresh;
+            if (readCountCheck && FDRCheck && psiDiffCheck)
+                filteredStrains[strainName].events.push(event);
+        }
+    }
+    updatedFilteredStrains.dispatchEvent(new Event("update"));
+};
 export function getFilteredStrains() {
-    return filteredStrains;
+    return Object.entries(filteredStrains);
 }
 
-const chromosomeList = $derived.by(() => {
+export function getChromosomeList() {
     const chromosomes = new Set<string>();
     chromosomes.add("All");
     Object.values(strains).forEach(strain => {
@@ -217,8 +235,5 @@ const chromosomeList = $derived.by(() => {
             return aNum - bNum;
         
         return a.localeCompare(b);
-    });;
-});
-export function getChromosomeList() {
-    return chromosomeList;
+    });
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { settings, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility } from "./state.svelte";
+    import { settings, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility, updatedFilteredStrains } from "./state.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
     let tooltip: HTMLDivElement | null = $state(null);
@@ -47,7 +47,7 @@
         return { start: startPos, end: endPos };
     }
 
-    function renderVisualization() {
+    export function renderVisualization() {
         if (!canvas || !tooltip)
             return;
         const ctx = canvas.getContext("2d");
@@ -71,12 +71,12 @@
         geneLabels = [];
         geneRegions = [];
         
-        filteredStrains.forEach(strain => {
+        filteredStrains.forEach(([_, { events }]) => {
             for (const eventType of eventTypes) {
                 if (settings.selectedEvent !== "All" && settings.selectedEvent !== eventType)
                     continue;
 
-                strain[eventType].forEach(event => {
+                events.forEach(event => {
                     // Extract coordinates based on splicing type
                     const positions = getPositionsFromData(event);
                     const startPos = positions.start;
@@ -113,13 +113,13 @@
         const lineHeight = 2;
         
         for (let strainIndex = 0; strainIndex < filteredStrains.length; strainIndex++) {
-            const strain = filteredStrains[strainIndex];
+            const [name, {colour, events}] = filteredStrains[strainIndex];
             const lineY = lineStartY + strainIndex * lineSpacing;
             
             // Draw strain label
             ctx.fillStyle = "#fbfbfe";
             ctx.font = "14px Inconsolata";
-            ctx.fillText(strain.name, 10, lineY - 10);
+            ctx.fillText(name, 10, lineY - 10);
             
             // Draw baseline
             ctx.strokeStyle = "#fbfbfe";
@@ -130,9 +130,8 @@
             ctx.stroke();
             
             // Draw gene regions
-            ctx.fillStyle = strain.colour;
+            ctx.fillStyle = colour;
 
-            const events = settings.selectedEvent === "All" ? [...strain.SE, ...strain.MXE, ...strain.A3SS, ...strain.A5SS, ...strain.RI] : strain[settings.selectedEvent];
             events.forEach(event => {
                 // Extract coordinates based on splicing type
                 const positions = getPositionsFromData(event);
@@ -153,7 +152,7 @@
                         y1: lineY - lineHeight * 2,
                         y2: lineY + lineHeight * 2,
                         data: event,
-                        strain: strain.name,
+                        strain: name,
                     });
                     
                     // Add gene labels (only for important genes and not too crowded)
@@ -199,14 +198,11 @@
                                 x: centerX,
                                 y: lineY + 15,
                                 data: event,
-                                strain: strain.name,
+                                strain: name,
                             });
                     }
                 }
             });
-
-            console.log("Gene regions:", geneRegions);
-            strainIndex++;
         }
         
         // Draw gene labels
@@ -410,11 +406,11 @@
         
         zoomLevel = newZoomLevel;
         xOffset = Math.max(0, Math.min(1 - (1/zoomLevel), newOffset));
-        
         renderVisualization();
     }
 
     $effect(() => renderVisualization());
+    updatedFilteredStrains.addEventListener("update", renderVisualization);
 </script>
 
 {#if getStrains().length > 0}

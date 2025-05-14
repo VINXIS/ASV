@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { settings, getChromosomeList, resetSettings, getStrains } from "./state.svelte";
+    import { settings, getChromosomeList, resetSettings, getStrains, updateFilteredStrains, updateSelectFilteredStrains } from "./state.svelte";
 </script>
 
 {#if getStrains().length > 0}
@@ -9,6 +9,7 @@
             <select
                 id="splicing-type"
                 bind:value={settings.selectedEvent}
+                onchange={() => updateSelectFilteredStrains()}
             >
                 <option value="All">All</option>
                 <option value="A3SS">A3SS (Alternative 3' Splice Site)</option>
@@ -24,6 +25,7 @@
             <select
                 id="chromosome"
                 bind:value={settings.selectedChr}
+                onchange={() => updateSelectFilteredStrains()}
             >
                 {#each getChromosomeList() as chromosome}
                     <option value={chromosome}>{chromosome}</option>
@@ -36,6 +38,7 @@
             <select
                 id="junction"
                 bind:value={settings.selectedJunctionView}
+                onchange={() => updateSelectFilteredStrains()}
             >
                 <option value="JC">Junction Reads Only (JC)</option>
                 <option value="JCEC">Junction + Exon Reads (JCEC)</option>
@@ -51,6 +54,7 @@
                 max="1000"
                 step="1"
                 bind:value={settings.readCountThresh}
+                oninput={() => updateFilteredStrains()}
             />
             <span>{settings.readCountThresh}</span>
         </div>
@@ -64,6 +68,7 @@
                 max="1"
                 step="0.01"
                 bind:value={settings.FDRThresh}
+                oninput={() => updateFilteredStrains()}
             />
             <span>{settings.FDRThresh}</span>
         </div>
@@ -77,6 +82,7 @@
                 max="1"
                 step="0.01"
                 bind:value={settings.psiDiffThresh}
+                oninput={() => updateFilteredStrains()}
             />
             <span>{settings.psiDiffThresh}</span>
         </div>
@@ -87,11 +93,12 @@
                 type="checkbox"
                 id="limit"
                 bind:checked={settings.extraneousPsiLimits}
+                onchange={() => updateSelectFilteredStrains()}
             />
         </div>
 
         <button
-            on:click={() => resetSettings()}
+            onclick={() => resetSettings()}
         >
             Reset Settings
         </button>
