@@ -248,6 +248,7 @@ export function getFilteredStrains() {
 }
 
 /// SELECTED EVENT ///
+
 let selectedEvent: {
     event: Event;
     geneEvents: {
@@ -275,15 +276,15 @@ export function setSelectedEvent(event: Event | null) {
         geneEvents: [],
     };
     for (const [strainName, strainData] of Object.entries(filteredStrains)) {
-        const similarEvent = strainData.events.find(e => e.geneID === event.geneID || e.geneName === event.geneName);
-        if (similarEvent) {
-            selectedEvent.geneEvents.push({
+        const similarEvents = strainData.events.filter(e => e.geneID === event.geneID || e.geneName === event.geneName);
+        if (similarEvents.length > 0) {
+            selectedEvent.geneEvents.push(...similarEvents.map(e => ({
                 strain: {
                     name: strainName,
                     colour: strainData.colour,
                 },
-                event: similarEvent,
-            });
+                event: e,
+            })));
         }
     }
     updatedSelectedEvent.dispatchEvent(new Event("update"));
