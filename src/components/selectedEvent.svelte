@@ -1,10 +1,11 @@
 <script lang="ts">
     import { getPositionsFromData, getSplicingExons } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
-    import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, setSelectedEvent, updatedSelectedEvent, getSelectedEvent } from "./state.svelte";
+    import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent } from "./states/strains.svelte";
+    import Piechart from "./charts/pie.svelte";
+  import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent } from "./states/selectedEvent.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
-    let ctx: CanvasRenderingContext2D | null = $state(null);
 
     function arrayToString(arr?: number[]): string {
         if (!arr) return "N/A";
@@ -14,7 +15,7 @@
     function draw() {
         const selectedEvent = getSelectedEvent();
         if (!canvas || !selectedEvent) return;
-        ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
         // Reset canvas
@@ -129,7 +130,7 @@
             aria-label="Close"
             onclick={() => setSelectedEvent(null)}
         >X</button>
-        <h3>{selectedEvent.event.geneName || selectedEvent.event.geneID} - {selectedEvent.event.eventType}</h3>
+        <h3 style="color: {selectedEvent.strain.colour}">{selectedEvent.event.geneName || selectedEvent.event.geneID} - {selectedEvent.event.eventType}</h3>
         <canvas
             id="splicing-canvas"
             width="700"
@@ -140,8 +141,8 @@
         <div class="info-divs">
             <div class="info-div">
                 <p><strong>Chromosome:</strong> {selectedEvent.event.chr} ({selectedEvent.event.strand} strand)</p>
-                <p><strong>FDR:</strong> {selectedEvent.event.FDR ? selectedEvent.event.FDR.toExponential(3) : 'N/A'}</p>
-                <p><strong>Inclusion Level Difference (ΔΨ):</strong> {selectedEvent.event.psiDiff.toExponential(3)}</p>
+                <p><strong>FDR:</strong> {Math.abs(selectedEvent.event.FDR) < 0.001 ? selectedEvent.event.FDR.toExponential(3) : selectedEvent.event.FDR.toFixed(3)}</p>
+                <p><strong>Inclusion Level Difference (ΔΨ):</strong> {Math.abs(selectedEvent.event.psiDiff) < 0.001 ? selectedEvent.event.psiDiff.toExponential(3) : selectedEvent.event.psiDiff.toFixed(3)}</p>
                 {#if selectedEvent.event.eventType === 'SE'}
                     {@const seEvent = selectedEvent.event as SEEvent}
                     <p><strong>Target Exon:</strong> {seEvent.exonStart}-{seEvent.exonEnd}</p>
@@ -193,8 +194,8 @@
                                 ({event.strain.name}):
                                 <ul>
                                     <li>Event Type: {event.event.eventType}</li>
-                                    <li>FDR: {event.event.FDR ? event.event.FDR.toExponential(3) : 'N/A'}</li>
-                                    <li>Inclusion Level Difference (ΔΨ): {event.event.psiDiff.toExponential(3)}</li>
+                                    <li>FDR: {Math.abs(event.event.FDR) < 0.001 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
+                                    <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
                                     <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start}-{positions.end}</li>
                                 </ul>
                             </li>
@@ -203,6 +204,13 @@
                 </div>
             {/if}
         </div>
+        <Piechart
+            data={selectedEvent.geneEvents.reduce((acc, event) => {
+                const eventType = event.event.eventType;
+                acc[eventType] = (acc[eventType] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>)}
+        ></Piechart>
     </div>
 {/if}
 
@@ -219,12 +227,14 @@
         border-radius: 5px;
         max-width: 800px;
         width: 80%;
+        height: 80%;
+        overflow: auto;
     }
 
     .close-button {
-        position: absolute;
-        top: 10px;
-        right: 10px;
+        position: sticky;
+        top: 0;
+        left: 100%;
         border: none;
         background: none;
         font-size: 20px;

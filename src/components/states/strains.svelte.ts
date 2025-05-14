@@ -1,3 +1,6 @@
+import { getRandomColour } from "../../../utils/colour";
+import { settings } from "./settings.svelte";
+
 export const eventTypes = [
     "A3SS",
     "A5SS",
@@ -150,41 +153,8 @@ export function toggleStrainVisibility(i: number) {
 }
 export function shuffleColours() {
     strains.forEach(strain => {
-        const randomColor = "#" + Math.floor(Math.random() * 16777215).toString(16);
-        strain.colour = randomColor;
+        strain.colour = getRandomColour();
     });
-    updateSelectFilteredStrains();
-}
-
-export const settings = $state<{
-    selectedChr: string;
-    selectedEvent: "All" | EventType;
-    selectedJunctionView: ReadType;
-
-    readCountThresh: number;
-    FDRThresh: number;
-    psiDiffThresh: number;
-    extraneousPsiLimits: boolean;
-}>({
-    selectedChr: "All",
-    selectedEvent: "All",
-    selectedJunctionView: "JCEC",
-
-    readCountThresh: 10,
-    FDRThresh: 0.05,
-    psiDiffThresh: 0.2,
-    extraneousPsiLimits: false,
-});
-export function resetSettings() {
-    settings.selectedChr = "All";
-    settings.selectedEvent = "All";
-    settings.selectedJunctionView = "JCEC";
-
-    settings.readCountThresh = 10;
-    settings.FDRThresh = 0.05;
-    settings.psiDiffThresh = 0.2;
-    settings.extraneousPsiLimits = false;
-
     updateSelectFilteredStrains();
 }
 
@@ -245,47 +215,4 @@ export function updateFilteredStrains() {
 };
 export function getFilteredStrains() {
     return Object.entries(filteredStrains);
-}
-
-/// SELECTED EVENT ///
-
-let selectedEvent: {
-    event: Event;
-    geneEvents: {
-        strain: {
-            name: string;
-            colour: string;
-        };
-        event: Event;
-    }[];
-} | null = $state(null);
-export const updatedSelectedEvent = new EventTarget();
-export function getSelectedEvent() {
-    return selectedEvent;
-}
-export function setSelectedEvent(event: Event | null) {
-    console.log(event);
-    if (!event) {
-        selectedEvent = null;
-        updatedSelectedEvent.dispatchEvent(new Event("update"));
-        return;
-    }
-
-    selectedEvent = {
-        event,
-        geneEvents: [],
-    };
-    for (const [strainName, strainData] of Object.entries(filteredStrains)) {
-        const similarEvents = strainData.events.filter(e => e.geneID === event.geneID || e.geneName === event.geneName);
-        if (similarEvents.length > 0) {
-            selectedEvent.geneEvents.push(...similarEvents.map(e => ({
-                strain: {
-                    name: strainName,
-                    colour: strainData.colour,
-                },
-                event: e,
-            })));
-        }
-    }
-    updatedSelectedEvent.dispatchEvent(new Event("update"));
 }

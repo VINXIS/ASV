@@ -1,19 +1,21 @@
 <script lang="ts">
-    import { settings, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility, updatedFilteredStrains, setSelectedEvent } from "./state.svelte";
+    import { type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility, updatedFilteredStrains } from "./states/strains.svelte";
     import { getPositionsFromData } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
+  import { settings } from "./states/settings.svelte";
+  import { setSelectedEvent } from "./states/selectedEvent.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
     let tooltip: HTMLDivElement | null = $state(null);
 
-    let hoveredPoint: { data: ASEvent; strain: string } | null = null;
+    let hoveredPoint: { event: ASEvent; strain: { name: string; colour: string; } } | null = null;
 
     let zoomLevel = 1;
     let xOffset = 0;
     let drag = false;
 
-    let geneLabels: { x: number; y: number; text: string; textWidth: number; data: ASEvent; strain: string }[] = [];
-    let geneRegions: { x1: number; x2: number; y1: number; y2: number; data: ASEvent; strain: string }[] = [];
+    let geneLabels: { x: number; y: number; text: string; textWidth: number; event: ASEvent; strain: { name: string; colour: string; } }[] = [];
+    let geneRegions: { x1: number; x2: number; y1: number; y2: number; event: ASEvent; strain: { name: string; colour: string; } }[] = [];
 
     export function renderVisualization() {
         if (!canvas || !tooltip)
@@ -123,8 +125,8 @@
                         x2,
                         y1: lineY - lineHeight * 2,
                         y2: lineY + lineHeight * 2,
-                        data: event,
-                        strain: name,
+                        event,
+                        strain: { name, colour },
                     });
                     
                     // Add gene labels (only for important genes and not too crowded)
@@ -169,8 +171,8 @@
                                 textWidth,
                                 x: centerX,
                                 y: lineY + 15,
-                                data: event,
-                                strain: name,
+                                event,
+                                strain: { name, colour },
                             });
                     }
                 }
@@ -276,12 +278,12 @@
                     break;
                 }
         if (foundLabel || foundRegion) {
-            const data = foundLabel ? foundLabel.data : foundRegion!.data;
+            const data = foundLabel ? foundLabel.event : foundRegion!.event;
             const strain = foundLabel ? foundLabel.strain : foundRegion!.strain;
             
             let tooltipContent = `
                 <strong>Gene:</strong> ${data.geneName || data.geneID || "Unknown"}<br>
-                <strong>Strain:</strong> ${strain}<br>
+                <strong>Strain:</strong> ${strain.name}<br>
                 <strong>Chromosome:</strong> ${data.chr}${data.strand ? " (" + data.strand + ")" : ""}<br>
                 <strong>Event Type:</strong> ${data.eventType}<br>
                 <strong>P-Value:</strong> ${data.pVal.toExponential(3)}<br>
@@ -337,7 +339,10 @@
             tooltip.style.display = "block";
             
             canvas.style.cursor = "pointer";
-            hoveredPoint = foundLabel || foundRegion;
+            hoveredPoint = {
+                event: data,
+                strain: strain,
+            };
         } else {
             tooltip.style.display = "none";
             canvas.style.cursor = "default";
@@ -348,8 +353,7 @@
     function handleCanvasClick() {
         if (!hoveredPoint)
             return;
-        const data = hoveredPoint.data;
-        setSelectedEvent(data);
+        setSelectedEvent(hoveredPoint);
     }
 
     function handleWheel(event: WheelEvent) {

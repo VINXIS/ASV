@@ -1,4 +1,4 @@
-import type { ASSEvent, Event, MXEEvent, RIEvent, SEEvent } from "./state.svelte";
+import type { ASSEvent, Event, MXEEvent, RIEvent, SEEvent } from "./states/strains.svelte";
 
 export function getPositionsFromData(data: Event) {
     let startPos = Infinity;
@@ -34,7 +34,12 @@ export function getPositionsFromData(data: Event) {
     return { start: startPos, end: endPos };
 }
 
-export function getSplicingExons(data: Event) {
+export function getSplicingExons(data: Event): {
+    start: number;
+    end: number;
+    type: "junction" | "upstream" | "downstream" | "first" | "second" | "flanking" | "long" | "short" | "intron" | "target";
+    inclusion: boolean;
+}[] {
     const strand = data.strand;
     let exons: {
         start: number;

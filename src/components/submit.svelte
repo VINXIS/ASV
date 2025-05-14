@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type ReadType, type EventType, type Event as ASEvent, getStrains, setStrains } from "./state.svelte";
+    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type ReadType, type EventType, type Event as ASEvent, getStrains, setStrains } from "./states/strains.svelte";
     import { average, parseNumberArray } from "../../utils/numbers";
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
-    import { getRandomColor } from "../../utils/colour";
+    import { getRandomColour } from "../../utils/colour";
     import { readFileAsync } from "../../utils/files";
 
     let folderInput: HTMLInputElement;
@@ -215,7 +215,7 @@
                 } else { // Create new strain
                     const newStrain: Strain = {
                         name: strainName,
-                        colour: getRandomColor(),
+                        colour: getRandomColour(),
                         visible: true,
                         A3SS: [],
                         A5SS: [],

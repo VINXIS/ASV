@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { settings, getChromosomeList, resetSettings, getStrains, updateFilteredStrains, updateSelectFilteredStrains, shuffleColours } from "./state.svelte";
+    import { resetSettings, settings } from "./states/settings.svelte";
+    import { getChromosomeList, getStrains, updateFilteredStrains, updateSelectFilteredStrains, shuffleColours } from "./states/strains.svelte";
 </script>
 
 {#if getStrains().length > 0}
