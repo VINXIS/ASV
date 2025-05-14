@@ -148,6 +148,13 @@ export function toggleStrainVisibility(i: number) {
     strains[i].visible = !strains[i].visible;
     updateSelectFilteredStrains();
 }
+export function shuffleColours() {
+    strains.forEach(strain => {
+        const randomColor = "#" + Math.floor(Math.random() * 16777215).toString(16);
+        strain.colour = randomColor;
+    });
+    updateSelectFilteredStrains();
+}
 
 export const settings = $state<{
     selectedChr: string;
@@ -180,6 +187,28 @@ export function resetSettings() {
 
     updateSelectFilteredStrains();
 }
+
+export function getChromosomeList() {
+    const chromosomes = new Set<string>();
+    chromosomes.add("All");
+    Object.values(strains).forEach(strain => {
+        strain.A3SS.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
+        strain.A5SS.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
+        strain.MXE.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
+        strain.RI.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
+        strain.SE.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
+    });
+    return Array.from(chromosomes).sort((a, b) => {
+        const aNum = parseInt(a.replace('chr', ''));
+        const bNum = parseInt(b.replace('chr', ''));
+        if (!isNaN(aNum) && !isNaN(bNum))
+            return aNum - bNum;
+        
+        return a.localeCompare(b);
+    });
+}
+
+/// FILTERS ///
 
 let selectFilteredStrains: Record<string, { colour: string; events: Event[] }> = {};
 let filteredStrains: Record<string, { colour: string; events: Event[] }> = {};
@@ -218,22 +247,44 @@ export function getFilteredStrains() {
     return Object.entries(filteredStrains);
 }
 
-export function getChromosomeList() {
-    const chromosomes = new Set<string>();
-    chromosomes.add("All");
-    Object.values(strains).forEach(strain => {
-        strain.A3SS.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
-        strain.A5SS.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
-        strain.MXE.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
-        strain.RI.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
-        strain.SE.forEach(event => chromosomes.add(/^([^_]+)/.exec(event.chr)![1].trim()));
-    });
-    return Array.from(chromosomes).sort((a, b) => {
-        const aNum = parseInt(a.replace('chr', ''));
-        const bNum = parseInt(b.replace('chr', ''));
-        if (!isNaN(aNum) && !isNaN(bNum))
-            return aNum - bNum;
-        
-        return a.localeCompare(b);
-    });
+/// SELECTED EVENT ///
+let selectedEvent: {
+    event: Event;
+    geneEvents: {
+        strain: {
+            name: string;
+            colour: string;
+        };
+        event: Event;
+    }[];
+} | null = $state(null);
+export const updatedSelectedEvent = new EventTarget();
+export function getSelectedEvent() {
+    return selectedEvent;
+}
+export function setSelectedEvent(event: Event | null) {
+    console.log(event);
+    if (!event) {
+        selectedEvent = null;
+        updatedSelectedEvent.dispatchEvent(new Event("update"));
+        return;
+    }
+
+    selectedEvent = {
+        event,
+        geneEvents: [],
+    };
+    for (const [strainName, strainData] of Object.entries(filteredStrains)) {
+        const similarEvent = strainData.events.find(e => e.geneID === event.geneID || e.geneName === event.geneName);
+        if (similarEvent) {
+            selectedEvent.geneEvents.push({
+                strain: {
+                    name: strainName,
+                    colour: strainData.colour,
+                },
+                event: similarEvent,
+            });
+        }
+    }
+    updatedSelectedEvent.dispatchEvent(new Event("update"));
 }

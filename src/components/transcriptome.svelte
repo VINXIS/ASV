@@ -1,12 +1,10 @@
 <script lang="ts">
-    import { settings, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility, updatedFilteredStrains } from "./state.svelte";
-    import SplicingViz from "./splicingViz.svelte";
-  import { getPositionsFromData } from "./eventHelpers";
-  import { rootObserver } from "./rootObserver";
+    import { settings, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility, updatedFilteredStrains, setSelectedEvent } from "./state.svelte";
+    import { getPositionsFromData } from "./eventHelpers";
+    import { rootObserver } from "./rootObserver";
 
     let canvas: HTMLCanvasElement | null = $state(null);
     let tooltip: HTMLDivElement | null = $state(null);
-    let splicingVizData: ASEvent | null = $state(null);
 
     let hoveredPoint: { data: ASEvent; strain: string } | null = null;
 
@@ -351,7 +349,7 @@
         if (!hoveredPoint)
             return;
         const data = hoveredPoint.data;
-        splicingVizData = data;
+        setSelectedEvent(data);
     }
 
     function handleWheel(event: WheelEvent) {
@@ -393,10 +391,11 @@
                     onkeydown={() => toggleStrainVisibility(i)}
                     tabindex="-1"
                     role="button"
+                    style="text-decoration: {strain.visible ? 'none' : 'line-through'}"
                 >
                     <span
                         class="color-box"
-                        style="background-color: {strain.colour}; display: {strain.visible ? 'inline-block' : 'none'}"
+                        style="background-color: {strain.colour}; display: {strain.visible ? 'inline-block' : 'none'};"
                     ></span> {strain.name}
                 </div>
             {/each}
@@ -417,12 +416,6 @@
         class="tooltip"
         bind:this={tooltip}
     ></div>
-    {#if splicingVizData}
-        <SplicingViz
-            eventData={splicingVizData}
-            toggle={() => splicingVizData = null}
-        ></SplicingViz>
-    {/if}
 {/if}
 
 <style>

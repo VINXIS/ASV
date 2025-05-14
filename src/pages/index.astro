@@ -3,6 +3,7 @@ import "../styles/main.css";
 import Submit from "../components/submit.svelte";
 import Settings from "../components/settings.svelte";
 import Transcriptome from "../components/transcriptome.svelte";
+import SplicingViz from "../components/splicingViz.svelte";
 ---
 
 <html lang="en">
@@ -38,5 +39,6 @@ import Transcriptome from "../components/transcriptome.svelte";
 		<Submit client:only="svelte" />
 		<Settings client:only="svelte" />
 		<Transcriptome client:only="svelte" />
+		<SplicingViz client:only="svelte" />
 	</body>
 </html>

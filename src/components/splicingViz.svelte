@@ -1,12 +1,7 @@
 <script lang="ts">
-  import { getPositionsFromData, getSplicingExons } from "./eventHelpers";
-  import { rootObserver } from "./rootObserver";
-  import type { Event as ASEvent, SEEvent, MXEEvent, ASSEvent, RIEvent } from "./state.svelte";
-
-    let { eventData, toggle }: {
-        eventData: ASEvent;
-        toggle: () => void;
-    } = $props();
+    import { getPositionsFromData, getSplicingExons } from "./eventHelpers";
+    import { rootObserver } from "./rootObserver";
+    import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, setSelectedEvent, updatedSelectedEvent, getSelectedEvent } from "./state.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
     let ctx: CanvasRenderingContext2D | null = $state(null);
@@ -17,7 +12,8 @@
     }
 
     function draw() {
-        if (!canvas) return;
+        const selectedEvent = getSelectedEvent();
+        if (!canvas || !selectedEvent) return;
         ctx = canvas.getContext('2d');
         if (!ctx) return;
 
@@ -30,11 +26,11 @@
 
         const [x, y, width, height] = [50, 100, canvas.width - 100, 100];
 
-        const exons = getSplicingExons(eventData);
+        const exons = getSplicingExons(selectedEvent.event);
         if (!exons.length) return;
         
         // Get position range for scaling
-        const positions = getPositionsFromData(eventData);
+        const positions = getPositionsFromData(selectedEvent.event);
         const minPos = positions.start;
         const maxPos = positions.end;
         const posRange = maxPos - minPos;
@@ -107,83 +103,108 @@
         ctx.textAlign = 'center';
         
         // Draw splicing type label
-        ctx.fillText(eventData.eventType, x + width/2, y - 5);
+        ctx.fillText(selectedEvent.event.eventType, x + width/2, y - 5);
         
         // Draw strand indicator
-        const strandSymbol = eventData.strand === '+' ? '→' : '←';
-        ctx.fillText(`${strandSymbol} ${eventData.strand} strand`, x + width/2, y + height + 15);
+        const strandSymbol = selectedEvent.event.strand === '+' ? '→' : '←';
+        ctx.fillText(`${strandSymbol} ${selectedEvent.event.strand} strand`, x + width/2, y + height + 15);
         
         // Optional: Add appropriate labels depending on splicing type
         ctx.fillStyle = '#4285F4';
-        ctx.fillText(`Inclusion ${eventData.psi1Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`Inclusion ${selectedEvent.event.psi1Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
         ctx.fillStyle = '#DB4437';
-        ctx.fillText(`Exclusion ${(1-eventData.psi1Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`Exclusion ${(1-selectedEvent.event.psi1Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
     }
 
     $effect(() => draw());
     rootObserver(draw);
+    updatedSelectedEvent.addEventListener("update", draw);
 </script>
 
-<div id="splicing-detail-panel">
-    <button
-        class="close-button"
-        aria-label="Close"
-        onclick={() => toggle()}
-    >X</button>
-    <h3>{eventData.geneName || eventData.geneID} - {eventData.eventType}</h3>
-    <canvas
-        id="splicing-canvas"
-        width="700"
-        height="300"
-        bind:this={canvas}
-        style="display: block; margin: 0 auto;"
-    ></canvas>
-    <div class="info-div">
-        <p><strong>Chromosome:</strong> {eventData.chr} ({eventData.strand} strand)</p>
-        <p><strong>FDR:</strong> {eventData.FDR ? eventData.FDR.toExponential(3) : 'N/A'}</p>
-        <p><strong>Inclusion Level Difference (ΔΨ):</strong> {eventData.psiDiff.toExponential(3)}</p>
-        {#if eventData.eventType === 'SE'}
-            {@const seEvent = eventData as SEEvent}
-            <p><strong>Target Exon:</strong> {seEvent.exonStart}-{seEvent.exonEnd}</p>
-            <p><strong>Upstream Exon:</strong> {seEvent.upstreamExonStart}-{seEvent.upstreamExonEnd}</p>
-            <p><strong>Downstream Exon:</strong> {seEvent.downstreamExonStart}-{seEvent.downstreamExonEnd}</p>
-            <p><strong>Target Read Count:</strong> {arrayToString(seEvent.targetCount)}</p>
-            <p><strong>Upstream to Target Count:</strong> {arrayToString(seEvent.upstreamToTargetCount)}</p>
-            <p><strong>Target to Downstream Count:</strong> {arrayToString(seEvent.targetToDownstreamCount)}</p>
-            <p><strong>Upstream to Downstream Count:</strong> {arrayToString(seEvent.upstreamToDownstreamCount)}</p>
-        {:else if eventData.eventType === 'MXE'}
-            {@const mxeEvent = eventData as MXEEvent}
-            <p><strong>First Exon:</strong> {mxeEvent.exon1Start}-{mxeEvent.exon1End}</p>
-            <p><strong>Second Exon:</strong> {mxeEvent.exon2Start}-{mxeEvent.exon2End}</p>
-            <p><strong>Upstream Exon:</strong> {mxeEvent.upstreamExonStart}-{mxeEvent.upstreamExonEnd}</p>
-            <p><strong>Downstream Exon:</strong> {mxeEvent.downstreamExonStart}-{mxeEvent.downstreamExonEnd}</p>
-            <p><strong>First Read Count:</strong> {arrayToString(mxeEvent.firstCount)}</p>
-            <p><strong>Second Read Count:</strong> {arrayToString(mxeEvent.secondCount)}</p>
-            <p><strong>Upstream to First Count:</strong> {arrayToString(mxeEvent.upstreamToFirstCount)}</p>
-            <p><strong>Upstream to Second Count:</strong> {arrayToString(mxeEvent.upstreamToSecondCount)}</p>
-            <p><strong>First to Downstream Count:</strong> {arrayToString(mxeEvent.firstToDownstreamCount)}</p>
-            <p><strong>Second to Downstream Count:</strong> {arrayToString(mxeEvent.secondToDownstreamCount)}</p>
-        {:else if eventData.eventType === 'A3SS' || eventData.eventType === 'A5SS'}
-            {@const assEvent = eventData as ASSEvent}
-            <p><strong>Long Exon:</strong> {assEvent.longExonStart}-{assEvent.longExonEnd}</p>
-            <p><strong>Short Exon:</strong> {assEvent.shortExonStart}-{assEvent.shortExonEnd}</p>
-            <p><strong>Flanking Exon:</strong> {assEvent.flankingExonStart}-{assEvent.flankingExonEnd}</p>
-            <p><strong>Across Short Boundary Count:</strong> {arrayToString(assEvent.acrossShortBoundaryCount)}</p>
-            <p><strong>Long to Flanking Count:</strong> {arrayToString(assEvent.longToFlankingCount)}</p>
-            <p><strong>Exclusive to Long Count:</strong> {arrayToString(assEvent.exclusiveToLongCount)}</p>
-            <p><strong>Short to Flanking Count:</strong> {arrayToString(assEvent.shortToFlankingCount)}</p>
-        {:else if eventData.eventType === 'RI'}
-            {@const riEvent = eventData as RIEvent}
-            <p><strong>RI Exon:</strong> {riEvent.riExonStart}-{riEvent.riExonEnd}</p>
-            <p><strong>Upstream Exon:</strong> {riEvent.upstreamExonStart}-{riEvent.upstreamExonEnd}</p>
-            <p><strong>Downstream Exon:</strong> {riEvent.downstreamExonStart}-{riEvent.downstreamExonEnd}</p>
-            <p><strong>Intron Count:</strong> {arrayToString(riEvent.intronCount)}</p>
-            <p><strong>Upstream to Intron Count:</strong> {arrayToString(riEvent.upstreamToIntronCount)}</p>
-            <p><strong>Intron to Downstream Count:</strong> {arrayToString(riEvent.intronToDownstreamCount)}</p>
-            <p><strong>Upstream to Downstream Count:</strong> {arrayToString(riEvent.upstreamToDownstreamCount)}</p>
-        {/if}
+{#if getSelectedEvent()}
+    {@const selectedEvent = getSelectedEvent()!}
+    <div id="splicing-detail-panel">
+        <button
+            class="close-button"
+            aria-label="Close"
+            onclick={() => setSelectedEvent(null)}
+        >X</button>
+        <h3>{selectedEvent.event.geneName || selectedEvent.event.geneID} - {selectedEvent.event.eventType}</h3>
+        <canvas
+            id="splicing-canvas"
+            width="700"
+            height="300"
+            bind:this={canvas}
+            style="display: block; margin: 0 auto;"
+        ></canvas>
+        <div class="info-divs">
+            <div class="info-div">
+                <p><strong>Chromosome:</strong> {selectedEvent.event.chr} ({selectedEvent.event.strand} strand)</p>
+                <p><strong>FDR:</strong> {selectedEvent.event.FDR ? selectedEvent.event.FDR.toExponential(3) : 'N/A'}</p>
+                <p><strong>Inclusion Level Difference (ΔΨ):</strong> {selectedEvent.event.psiDiff.toExponential(3)}</p>
+                {#if selectedEvent.event.eventType === 'SE'}
+                    {@const seEvent = selectedEvent.event as SEEvent}
+                    <p><strong>Target Exon:</strong> {seEvent.exonStart}-{seEvent.exonEnd}</p>
+                    <p><strong>Upstream Exon:</strong> {seEvent.upstreamExonStart}-{seEvent.upstreamExonEnd}</p>
+                    <p><strong>Downstream Exon:</strong> {seEvent.downstreamExonStart}-{seEvent.downstreamExonEnd}</p>
+                    <p><strong>Target Read Count:</strong> {arrayToString(seEvent.targetCount)}</p>
+                    <p><strong>Upstream to Target Count:</strong> {arrayToString(seEvent.upstreamToTargetCount)}</p>
+                    <p><strong>Target to Downstream Count:</strong> {arrayToString(seEvent.targetToDownstreamCount)}</p>
+                    <p><strong>Upstream to Downstream Count:</strong> {arrayToString(seEvent.upstreamToDownstreamCount)}</p>
+                {:else if selectedEvent.event.eventType === 'MXE'}
+                    {@const mxeEvent = selectedEvent.event as MXEEvent}
+                    <p><strong>First Exon:</strong> {mxeEvent.exon1Start}-{mxeEvent.exon1End}</p>
+                    <p><strong>Second Exon:</strong> {mxeEvent.exon2Start}-{mxeEvent.exon2End}</p>
+                    <p><strong>Upstream Exon:</strong> {mxeEvent.upstreamExonStart}-{mxeEvent.upstreamExonEnd}</p>
+                    <p><strong>Downstream Exon:</strong> {mxeEvent.downstreamExonStart}-{mxeEvent.downstreamExonEnd}</p>
+                    <p><strong>First Read Count:</strong> {arrayToString(mxeEvent.firstCount)}</p>
+                    <p><strong>Second Read Count:</strong> {arrayToString(mxeEvent.secondCount)}</p>
+                    <p><strong>Upstream to First Count:</strong> {arrayToString(mxeEvent.upstreamToFirstCount)}</p>
+                    <p><strong>Upstream to Second Count:</strong> {arrayToString(mxeEvent.upstreamToSecondCount)}</p>
+                    <p><strong>First to Downstream Count:</strong> {arrayToString(mxeEvent.firstToDownstreamCount)}</p>
+                    <p><strong>Second to Downstream Count:</strong> {arrayToString(mxeEvent.secondToDownstreamCount)}</p>
+                {:else if selectedEvent.event.eventType === 'A3SS' || selectedEvent.event.eventType === 'A5SS'}
+                    {@const assEvent = selectedEvent.event as ASSEvent}
+                    <p><strong>Long Exon:</strong> {assEvent.longExonStart}-{assEvent.longExonEnd}</p>
+                    <p><strong>Short Exon:</strong> {assEvent.shortExonStart}-{assEvent.shortExonEnd}</p>
+                    <p><strong>Flanking Exon:</strong> {assEvent.flankingExonStart}-{assEvent.flankingExonEnd}</p>
+                    <p><strong>Across Short Boundary Count:</strong> {arrayToString(assEvent.acrossShortBoundaryCount)}</p>
+                    <p><strong>Long to Flanking Count:</strong> {arrayToString(assEvent.longToFlankingCount)}</p>
+                    <p><strong>Exclusive to Long Count:</strong> {arrayToString(assEvent.exclusiveToLongCount)}</p>
+                    <p><strong>Short to Flanking Count:</strong> {arrayToString(assEvent.shortToFlankingCount)}</p>
+                {:else if selectedEvent.event.eventType === 'RI'}
+                    {@const riEvent = selectedEvent.event as RIEvent}
+                    <p><strong>RI Exon:</strong> {riEvent.riExonStart}-{riEvent.riExonEnd}</p>
+                    <p><strong>Upstream Exon:</strong> {riEvent.upstreamExonStart}-{riEvent.upstreamExonEnd}</p>
+                    <p><strong>Downstream Exon:</strong> {riEvent.downstreamExonStart}-{riEvent.downstreamExonEnd}</p>
+                    <p><strong>Intron Count:</strong> {arrayToString(riEvent.intronCount)}</p>
+                    <p><strong>Upstream to Intron Count:</strong> {arrayToString(riEvent.upstreamToIntronCount)}</p>
+                    <p><strong>Intron to Downstream Count:</strong> {arrayToString(riEvent.intronToDownstreamCount)}</p>
+                    <p><strong>Upstream to Downstream Count:</strong> {arrayToString(riEvent.upstreamToDownstreamCount)}</p>
+                {/if}
+            </div>
+            {#if selectedEvent.geneEvents.length > 0}
+                <div class="info-div">
+                    <h4>All events for this Gene:</h4>
+                    <ul>
+                        {#each selectedEvent.geneEvents as event}
+                            {@const positions = getPositionsFromData(event.event)}
+                            <li style="color: {event.strain.colour}">
+                                ({event.strain.name}):
+                                <ul>
+                                    <li>Event Type: {event.event.eventType}</li>
+                                    <li>FDR: {event.event.FDR ? event.event.FDR.toExponential(3) : 'N/A'}</li>
+                                    <li>Inclusion Level Difference (ΔΨ): {event.event.psiDiff.toExponential(3)}</li>
+                                    <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start}-{positions.end}</li>
+                                </ul>
+                            </li>
+                        {/each}
+                    </ul>
+                </div>
+            {/if}
+        </div>
     </div>
-</div>
+{/if}
 
 <style>
     #splicing-detail-panel {
@@ -208,5 +229,10 @@
         background: none;
         font-size: 20px;
         cursor: pointer;
+    }
+
+    .info-divs {
+        display: flex;
+        justify-content: space-between;
     }
 </style>

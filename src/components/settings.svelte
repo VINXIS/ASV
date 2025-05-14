@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { settings, getChromosomeList, resetSettings, getStrains, updateFilteredStrains, updateSelectFilteredStrains } from "./state.svelte";
+    import { settings, getChromosomeList, resetSettings, getStrains, updateFilteredStrains, updateSelectFilteredStrains, shuffleColours } from "./state.svelte";
 </script>
 
 {#if getStrains().length > 0}
@@ -101,6 +101,12 @@
             onclick={() => resetSettings()}
         >
             Reset Settings
+        </button>
+
+        <button
+            onclick={() => shuffleColours()}
+        >
+            Shuffle Colours
         </button>
     </div>
 {/if}
