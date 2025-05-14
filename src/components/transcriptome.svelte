@@ -1,8 +1,12 @@
 <script lang="ts">
     import { settings, type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility, updatedFilteredStrains } from "./state.svelte";
+    import SplicingViz from "./splicingViz.svelte";
+  import { getPositionsFromData } from "./eventHelpers";
+  import { rootObserver } from "./rootObserver";
 
     let canvas: HTMLCanvasElement | null = $state(null);
     let tooltip: HTMLDivElement | null = $state(null);
+    let splicingVizData: ASEvent | null = $state(null);
 
     let hoveredPoint: { data: ASEvent; strain: string } | null = null;
 
@@ -13,40 +17,6 @@
     let geneLabels: { x: number; y: number; text: string; textWidth: number; data: ASEvent; strain: string }[] = [];
     let geneRegions: { x1: number; x2: number; y1: number; y2: number; data: ASEvent; strain: string }[] = [];
 
-    function getPositionsFromData(data: ASEvent) {
-        let startPos = Infinity;
-        let endPos = -Infinity;
-        
-        switch (data.eventType) {
-            case "SE":
-                const seData = data as SEEvent;
-                startPos = Math.min(seData.exonStart, seData.upstreamExonStart, seData.downstreamExonStart);
-                endPos = Math.max(seData.exonEnd, seData.upstreamExonEnd, seData.downstreamExonEnd);
-                break;
-                
-            case "MXE":
-                const mxeData = data as MXEEvent;
-                startPos = Math.min(mxeData.exon1Start, mxeData.exon2Start, mxeData.upstreamExonStart, mxeData.downstreamExonStart);
-                endPos = Math.max(mxeData.exon1End, mxeData.exon2End, mxeData.upstreamExonEnd, mxeData.downstreamExonEnd);
-                break;
-                
-            case "A3SS":
-            case "A5SS":
-                const assData = data as ASSEvent;
-                startPos = Math.min(assData.longExonStart, assData.shortExonStart, assData.flankingExonStart);
-                endPos = Math.max(assData.longExonEnd, assData.shortExonEnd, assData.flankingExonEnd);
-                break;
-                
-            case "RI":
-                const riData = data as RIEvent;
-                startPos = Math.min(riData.riExonStart, riData.upstreamExonStart, riData.downstreamExonStart);
-                endPos = Math.max(riData.riExonEnd, riData.upstreamExonEnd, riData.downstreamExonEnd);
-                break;
-        }
-        
-        return { start: startPos, end: endPos };
-    }
-
     export function renderVisualization() {
         if (!canvas || !tooltip)
             return;
@@ -54,12 +24,9 @@
         if (!ctx)
             return;
 
-        let root = document.querySelector(":root")!;
         // Check if root has light or dark mode
-        const colours = {
-            background: root.classList.contains("dark") ? "#1e1e1e" : "#fbfbfe",
-            text: root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e",
-        }
+        let root = document.querySelector(":root")!;
+        const textColour = root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e";
 
         // Get screen width and height
         const screenWidth = window.innerWidth;
@@ -124,12 +91,12 @@
             const lineY = lineStartY + strainIndex * lineSpacing;
             
             // Draw strain label
-            ctx.fillStyle = colours.text;
+            ctx.fillStyle = textColour;
             ctx.font = "14px Inconsolata";
             ctx.fillText(name, 10, lineY - 10);
             
             // Draw baseline
-            ctx.strokeStyle = colours.text;
+            ctx.strokeStyle = textColour;
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(0, lineY);
@@ -214,7 +181,7 @@
         
         // Draw gene labels
         ctx.font = "10px Inconsolata";
-        ctx.fillStyle = colours.text;
+        ctx.fillStyle = textColour;
         for (const label of geneLabels) {
             // Center the text at the specified x coordinate
             ctx.textAlign = "center";
@@ -222,14 +189,14 @@
         }
         
         // X axis
-        ctx.strokeStyle = colours.text;
+        ctx.strokeStyle = textColour;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(canvas.width, 0);
         ctx.stroke();
         
-        ctx.fillStyle = colours.text;
+        ctx.fillStyle = textColour;
         ctx.font = "10px Inconsolata";
         ctx.textAlign = "center";
         
@@ -253,10 +220,6 @@
         ctx.textAlign = "left";
         ctx.font = "12px Inconsolata";
         ctx.fillText(settings.selectedChr === "All" ? "Position (bp)" : `${settings.selectedChr} Position (bp)`, 5, 25);
-    }
-
-    function showDetailedSplicingVisualization(data: ASEvent) {
-
     }
 
     /// INTERACTIVITY HANDLERS ///
@@ -388,7 +351,7 @@
         if (!hoveredPoint)
             return;
         const data = hoveredPoint.data;
-        showDetailedSplicingVisualization(data);
+        splicingVizData = data;
     }
 
     function handleWheel(event: WheelEvent) {
@@ -418,15 +381,7 @@
 
     $effect(() => renderVisualization());
     updatedFilteredStrains.addEventListener("update", renderVisualization);
-
-    // Watches for :root class changes to update colors
-    const observer = new MutationObserver(() => {
-        renderVisualization();
-    });
-    observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["class"],
-    });
+    rootObserver(renderVisualization);
 </script>
 
 {#if getStrains().length > 0}
@@ -462,6 +417,12 @@
         class="tooltip"
         bind:this={tooltip}
     ></div>
+    {#if splicingVizData}
+        <SplicingViz
+            eventData={splicingVizData}
+            toggle={() => splicingVizData = null}
+        ></SplicingViz>
+    {/if}
 {/if}
 
 <style>

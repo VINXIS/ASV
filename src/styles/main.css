@@ -1,8 +1,10 @@
 :root {
     color-scheme: light;
+    --background-colour: #ffffff;
 }
 .dark {
     color-scheme: dark;
+    --background-colour: #1b1a21;
 }
 
 * {
