@@ -4,6 +4,7 @@ import Submit from "../components/submit.svelte";
 import Settings from "../components/settings.svelte";
 import Transcriptome from "../components/transcriptome.svelte";
 import SelectedEvent from "../components/selectedEvent.svelte";
+import Tooltip from "../components/tooltip.svelte";
 ---
 
 <html lang="en">
@@ -40,5 +41,6 @@ import SelectedEvent from "../components/selectedEvent.svelte";
 		<Settings client:only="svelte" />
 		<Transcriptome client:only="svelte" />
 		<SelectedEvent client:only="svelte" />
+		<Tooltip client:only="svelte" />
 	</body>
 </html>

@@ -2,12 +2,11 @@
   import { onMount } from "svelte";
   import { getRandomColour, highlightColour } from "../../../utils/colour";
   import { updatedSelectedEvent } from "../states/selectedEvent.svelte";
+  import { clearTooltip, setTooltipHTML } from "../states/tooltip.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
-    let tooltip: HTMLDivElement | null = $state(null);
 
     let { data }: { data: Record<string, number> } = $props();
-    let hoveredItem: string = $state("");
     let legendItems: { key: string; value: number; colour: string }[] = $state([]);
     const total = $derived(Object.values(data).reduce((acc, val) => acc + val, 0));
 
@@ -88,9 +87,7 @@
         const distanceFromCenter = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
         if (distanceFromCenter > radius) {
             draw(false);
-            hoveredItem = "";
-            if (tooltip)
-                tooltip.style.display = "none";
+            clearTooltip();
             canvas.style.cursor = "default";
             return;
         }
@@ -102,31 +99,26 @@
         angleFromCenter = Math.PI * 2 - angleFromCenter;
 
         let startAngle = 0;
-        let found = false;
-        hoveredItem = "";
+        let found: { key: string; value: number; colour: string } | null = null;
         for (const item of legendItems) {
             const segmentAngle = (item.value / total) * Math.PI * 2;
             const endAngle = startAngle + segmentAngle;
 
             if (angleFromCenter >= startAngle && angleFromCenter <= endAngle) {
-                hoveredItem = item.key;
-                found = true;
+                found = item;
                 drawSlice(ctx, centerX, centerY, radius, startAngle, endAngle, highlightColour(item.colour, 30)); // Make the slice brighter
             } else
                 drawSlice(ctx, centerX, centerY, radius, startAngle, endAngle, item.colour); // Draw the slice normally in case it was highlighted before
             startAngle += segmentAngle;
         }
 
-        if (found && tooltip) {
-            tooltip.style.display = "block";
-            tooltip.style.left = `${event.x + 10}px`;
-            tooltip.style.top = `${event.y + 10}px`;
-            tooltip.innerHTML = hoveredItem;
+        if (found) {
+            setTooltipHTML(
+                `<div style="color: ${found.colour};"><strong>${found.key}</strong>: ${found.value} (${((found.value / total) * 100).toFixed(2)}%)</div>`,
+            );
             canvas.style.cursor = "pointer";
-        } else if (tooltip) {
-            tooltip.style.display = "none";
+        } else
             canvas.style.cursor = "default";
-        }
     }
     
     onMount(() => draw());
@@ -145,19 +137,3 @@
         </div>
     {/each}
 </div>
-<div bind:this={tooltip} class="tooltip">
-    <span>{hoveredItem}</span>
-</div>
-
-<style>
-    .tooltip {
-        position: fixed;
-        background-color: var(--background-colour);
-        padding: 5px;
-        border-radius: 5px;
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-        pointer-events: none;
-        z-index: 1000;
-        display: none;
-    }
-</style>

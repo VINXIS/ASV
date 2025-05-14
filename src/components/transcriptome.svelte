@@ -2,11 +2,11 @@
     import { type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility, updatedFilteredStrains } from "./states/strains.svelte";
     import { getPositionsFromData } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
-  import { settings } from "./states/settings.svelte";
-  import { setSelectedEvent } from "./states/selectedEvent.svelte";
+    import { settings } from "./states/settings.svelte";
+    import { setSelectedEvent } from "./states/selectedEvent.svelte";
+    import { clearTooltip, setTooltipHTML } from "./states/tooltip.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
-    let tooltip: HTMLDivElement | null = $state(null);
 
     let hoveredPoint: { event: ASEvent; strain: { name: string; colour: string; } } | null = null;
 
@@ -18,7 +18,7 @@
     let geneRegions: { x1: number; x2: number; y1: number; y2: number; event: ASEvent; strain: { name: string; colour: string; } }[] = [];
 
     export function renderVisualization() {
-        if (!canvas || !tooltip)
+        if (!canvas)
             return;
         const ctx = canvas.getContext("2d");
         if (!ctx)
@@ -239,7 +239,7 @@
     };
 
     function handleMouseMove(event: MouseEvent) {
-        if (!canvas || !tooltip)
+        if (!canvas)
             return;
             
         const rect = canvas.getBoundingClientRect();
@@ -251,7 +251,7 @@
             const mouseProportion = mouseX / canvas.width;
             const newOffset = Math.max(0, Math.min(1 - (1/zoomLevel), mouseProportion));
             xOffset = newOffset;
-            tooltip.style.display = "none";
+            clearTooltip();
             hoveredPoint = null;
             renderVisualization();
             return;
@@ -332,11 +332,7 @@
                     break;
             }
             
-            tooltip.innerHTML = tooltipContent;
-            
-            tooltip.style.left = `${event.clientX + 10}px`;
-            tooltip.style.top = `${event.clientY + 10}px`;
-            tooltip.style.display = "block";
+            setTooltipHTML(tooltipContent);
             
             canvas.style.cursor = "pointer";
             hoveredPoint = {
@@ -344,7 +340,7 @@
                 strain: strain,
             };
         } else {
-            tooltip.style.display = "none";
+            clearTooltip();
             canvas.style.cursor = "default";
             hoveredPoint = null;
         }
@@ -414,12 +410,6 @@
             onwheel={handleWheel}
         ></canvas>
     </div>
-
-    <div
-        id="tooltip"
-        class="tooltip"
-        bind:this={tooltip}
-    ></div>
 {/if}
 
 <style>
@@ -459,17 +449,5 @@
 canvas {
     border: 1px solid #ddd;
     cursor: default;
-}
-
-.tooltip {
-    position: fixed;
-    padding: 10px;
-    border-radius: 4px;
-    pointer-events: none;
-    font-size: 12px;
-    z-index: 100;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    display: none;
-    max-width: 300px;
 }
 </style>
