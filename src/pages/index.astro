@@ -13,10 +13,28 @@ import Transcriptome from "../components/transcriptome.svelte";
 		<meta name="generator" content={Astro.generator} />
 		<link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&display=swap" rel="stylesheet">
 		<title>Alternative Splicing Visualizer</title>
+		<script>
+			let root = document.querySelector(":root")!;
+			let button = document.getElementById("dark-mode-toggle")!;
+			if (localStorage.getItem("dark-mode") === "true")
+				root.classList.add("dark");
+			else
+				root.classList.remove("dark");
+			button.addEventListener('click', () => {
+				if (root.classList.contains("dark")) {
+					localStorage.setItem("dark-mode", "false");
+					root.classList.remove("dark");
+				} else {
+					localStorage.setItem("dark-mode", "true");
+					root.classList.add("dark");
+				}
+			});
+		</script>
 	</head>
 	<body>
 		<h1>ASV | <a href="https://github.com/VINXIS/ASV">GitHub</a></h1>
 		<h2>Alternative Splicing Visualizer</h2>
+		<button class="button" id="dark-mode-toggle">Toggle Dark Mode</button>
 		<Submit client:only="svelte" />
 		<Settings client:only="svelte" />
 		<Transcriptome client:only="svelte" />

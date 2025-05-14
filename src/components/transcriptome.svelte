@@ -54,6 +54,13 @@
         if (!ctx)
             return;
 
+        let root = document.querySelector(":root")!;
+        // Check if root has light or dark mode
+        const colours = {
+            background: root.classList.contains("dark") ? "#1e1e1e" : "#fbfbfe",
+            text: root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e",
+        }
+
         // Get screen width and height
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
@@ -117,12 +124,12 @@
             const lineY = lineStartY + strainIndex * lineSpacing;
             
             // Draw strain label
-            ctx.fillStyle = "#fbfbfe";
+            ctx.fillStyle = colours.text;
             ctx.font = "14px Inconsolata";
             ctx.fillText(name, 10, lineY - 10);
             
             // Draw baseline
-            ctx.strokeStyle = "#fbfbfe";
+            ctx.strokeStyle = colours.text;
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(0, lineY);
@@ -207,7 +214,7 @@
         
         // Draw gene labels
         ctx.font = "10px Inconsolata";
-        ctx.fillStyle = "#fbfbfe";
+        ctx.fillStyle = colours.text;
         for (const label of geneLabels) {
             // Center the text at the specified x coordinate
             ctx.textAlign = "center";
@@ -215,14 +222,14 @@
         }
         
         // X axis
-        ctx.strokeStyle = "#fbfbfe";
+        ctx.strokeStyle = colours.text;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(canvas.width, 0);
         ctx.stroke();
         
-        ctx.fillStyle = "#fbfbfe";
+        ctx.fillStyle = colours.text;
         ctx.font = "10px Inconsolata";
         ctx.textAlign = "center";
         
@@ -411,6 +418,15 @@
 
     $effect(() => renderVisualization());
     updatedFilteredStrains.addEventListener("update", renderVisualization);
+
+    // Watches for :root class changes to update colors
+    const observer = new MutationObserver(() => {
+        renderVisualization();
+    });
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+    });
 </script>
 
 {#if getStrains().length > 0}
@@ -490,8 +506,6 @@ canvas {
 .tooltip {
     position: fixed;
     padding: 10px;
-    background: rgba(0, 0, 0, 0.95);
-    border: 1px solid #ddd;
     border-radius: 4px;
     pointer-events: none;
     font-size: 12px;
