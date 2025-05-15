@@ -10,6 +10,7 @@
     let { data }: { data: Record<string, number> } = $props();
     let segments: { key: string; value: number; colour: string; startAngle: number; endAngle: number }[] = $state([]);
     const total = $derived(Object.values(data).reduce((acc, val) => acc + val, 0));
+    const margin = 0; // Margin between canvas edge and pie chart, 0 because I want it to fill the entire canvas for now
 
     function drawSlice(
         ctx: CanvasRenderingContext2D,
@@ -52,8 +53,7 @@
         const textY = centerY + Math.sin(midAngle) * textRadius;
         
         const text = `${key}: ${value}`;
-        const percentage = ((value / total) * 100).toFixed(1);
-        const percentText = `${percentage}%`;
+        const percentText = `${((value / total) * 100).toFixed(0)}%`;
         
         ctx.fillStyle = "black";
         ctx.font = "bold 12px Inconsolata";
@@ -83,7 +83,6 @@
         const height = canvas.height;
         const centerX = width / 2;
         const centerY = height / 2;
-        const margin = 10;
         const radius = Math.min(width, height) / 2 - margin;
 
         ctx.clearRect(0, 0, width, height);
@@ -105,7 +104,7 @@
         }
         
         // Draw labels in a separate pass to ensure they're on top
-        for (const segment of segments) {
+        for (const segment of segments)
             drawLabel(
                 ctx,
                 centerX,
@@ -116,7 +115,6 @@
                 segment.key,
                 segment.value
             );
-        }
     }
 
     function handleMouseMove(event: MouseEvent) {
@@ -132,7 +130,6 @@
         const height = canvas.height;
         const centerX = width / 2;
         const centerY = height / 2;
-        const margin = 10;
         const radius = Math.min(width, height) / 2 - margin;
         const distanceFromCenter = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
         if (distanceFromCenter > radius) {
@@ -159,7 +156,7 @@
         }
         
         // Have to redraw all the labels to keep them on top
-        for (const segment of segments) {
+        for (const segment of segments)
             drawLabel(
                 ctx,
                 centerX,
@@ -170,7 +167,6 @@
                 segment.key,
                 segment.value
             );
-        }
 
         if (found) {
             setTooltipHTML(
