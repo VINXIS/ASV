@@ -60,7 +60,7 @@
         
         // Draw exclusion path exons (solid)
         ctx.fillStyle = '#DB4437';  // Red for exclusion path
-        exons.filter(e => !e.inclusion && e.type !== "junction").forEach(exon => {
+        exons.filter(e => (!e.inclusion || e.type === "upstream" || e.type === "downstream" || e.type === "flanking") && e.type !== "junction").forEach(exon => {
             const exonX = scaleX(exon.start);
             const exonWidth = scaleX(exon.end) - exonX;
             ctx!.fillRect(exonX, yExclusionPath - exonHeight/2, exonWidth, exonHeight);
