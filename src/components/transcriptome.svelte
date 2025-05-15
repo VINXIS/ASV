@@ -236,6 +236,10 @@
 
     function handleMouseUpOrLeave() {
         drag = false;
+        if (hoveredPoint) {
+            clearTooltip();
+            hoveredPoint = null;
+        }
     };
 
     function handleMouseMove(event: MouseEvent) {
