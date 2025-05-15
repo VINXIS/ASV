@@ -7,8 +7,6 @@
     import { clearTooltip, setTooltipHTML } from "./states/tooltip.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
-        
-    const filteredStrains = $derived(getFilteredStrains());
 
     let hoveredPoint: { event: ASEvent; strain: { name: string; colour: string; } } | null = null;
 
@@ -38,6 +36,8 @@
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const filteredStrains = getFilteredStrains();
 
         let minPos = Infinity;
         let maxPos = -Infinity;
@@ -234,7 +234,11 @@
         xOffset = Math.max(0, Math.min(1 - (1/zoomLevel), mouseProportion));
     };
 
-    function handleMouseUpOrLeave() {
+    function handleMouseUp() {
+        drag = false;
+    }
+
+    function handleMouseLeave() {
         drag = false;
         if (hoveredPoint) {
             clearTooltip();
@@ -423,8 +427,8 @@
         <canvas
             bind:this={canvas}
             onmousedown={handleMouseDown}
-            onmouseup={handleMouseUpOrLeave}
-            onmouseleave={handleMouseUpOrLeave}
+            onmouseup={handleMouseUp}
+            onmouseleave={handleMouseLeave}
             onmousemove={handleMouseMove}
             onclick={handleCanvasClick}
             onwheel={handleWheel}
