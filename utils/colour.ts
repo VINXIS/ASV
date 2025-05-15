@@ -44,15 +44,17 @@ export function highlightColour(colour: string, brightness: number): string {
     return colour;
 }
 
-export function getRandomColour(colourType: "hex" | "rgb" | "hsl" = "hex"): string {
-    switch (colourType) {
-        case "rgb":
-            return `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`;
-        case "hsl":
-            return `hsl(${Math.floor(Math.random() * 360)}, ${Math.floor(Math.random() * 100)}%, ${Math.floor(Math.random() * 100)}%)`;
-        case "hex":
-            return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-        default:
-            return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-    }
-}
+export const colourScale = ["#4e79a7", "#f28e2c", "#e15759", "#76b7b2", "#59a14f", "#edc949", "#af7aa1", "#ff9da7", "#9c755f", "#bab0ab"] as const;
+
+// export function getRandomColour(colourType: "hex" | "rgb" | "hsl" = "hex"): string {
+//     switch (colourType) {
+//         case "rgb":
+//             return `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`;
+//         case "hsl":
+//             return `hsl(${Math.floor(Math.random() * 360)}, ${Math.floor(Math.random() * 100)}%, ${Math.floor(Math.random() * 100)}%)`;
+//         case "hex":
+//             return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+//         default:
+//             return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+//     }
+// }

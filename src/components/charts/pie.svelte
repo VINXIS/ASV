@@ -1,13 +1,14 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { getRandomColour, highlightColour } from "../../../utils/colour";
-  import { updatedSelectedEvent } from "../states/selectedEvent.svelte";
-  import { clearTooltip, setTooltipHTML } from "../states/tooltip.svelte";
+    import { onMount } from "svelte";
+    import { colourScale, highlightColour } from "../../../utils/colour";
+    import { updatedSelectedEvent } from "../states/selectedEvent.svelte";
+    import { clearTooltip, setTooltipHTML } from "../states/tooltip.svelte";
+    import { eventColours, type EventType } from "../states/strains.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
 
     let { data }: { data: Record<string, number> } = $props();
-    let legendItems: { key: string; value: number; colour: string }[] = $state([]);
+    let segments: { key: string; value: number; colour: string; startAngle: number; endAngle: number }[] = $state([]);
     const total = $derived(Object.values(data).reduce((acc, val) => acc + val, 0));
 
     function drawSlice(
@@ -30,7 +31,50 @@
         ctx.stroke();
     }
 
-    function draw(changeColours = true) {
+    function drawLabel(
+        ctx: CanvasRenderingContext2D,
+        centerX: number,
+        centerY: number,
+        radius: number,
+        startAngle: number,
+        endAngle: number,
+        key: string,
+        value: number
+    ) {
+        const segmentAngle = endAngle - startAngle;
+        // Arbitrary cutoff for segment size to not write labels on very small segments
+        if (segmentAngle < 0.15) return;
+        
+        // Positioning the text at 1/2 distance from center to edge at the middle of the segment
+        const textRadius = radius * 0.5;
+        const midAngle = startAngle + segmentAngle / 2;
+        const textX = centerX + Math.cos(midAngle) * textRadius;
+        const textY = centerY + Math.sin(midAngle) * textRadius;
+        
+        const text = `${key}: ${value}`;
+        const percentage = ((value / total) * 100).toFixed(1);
+        const percentText = `${percentage}%`;
+        
+        ctx.fillStyle = "black";
+        ctx.font = "bold 12px Inconsolata";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        
+        // Measure text to see if it will fit
+        const textWidth = ctx.measureText(text).width;
+        const chordLength = 2 * radius * Math.sin(segmentAngle / 4);
+        
+        // Only draw if there's enough space
+        if (textWidth < chordLength * 0.8) {
+            ctx.fillText(text, textX, textY - 8);
+
+            // Draws percentage below the main text
+            ctx.font = "11px Inconsolata";
+            ctx.fillText(percentText, textX, textY + 8);
+        }
+    }
+
+    function draw() {
         if (!canvas) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
@@ -42,30 +86,36 @@
         const margin = 10;
         const radius = Math.min(width, height) / 2 - margin;
 
-        let currentColour = getRandomColour();
+        ctx.clearRect(0, 0, width, height);
+
         let startAngle = 0;
-        if (changeColours)
-            legendItems = [];
+        segments = [];
 
         let i = 0;
         for (const [key, value] of Object.entries(data)) {
             const segmentAngle = (value / total) * Math.PI * 2;
             const endAngle = startAngle + segmentAngle;
-            const colour = changeColours ? currentColour : legendItems[i].colour;
+            let colour = eventColours[key as EventType] || colourScale[i % colourScale.length];
 
             drawSlice(ctx, centerX, centerY, radius, startAngle, endAngle, colour);
-            if (changeColours)
-                legendItems.push({ key, value, colour });
-
+            segments.push({ key, value, colour, startAngle, endAngle });
+            
             startAngle = endAngle;
             i++;
-
-            if (changeColours) {
-                const nextColour = getRandomColour();
-                while (Math.abs(parseInt(currentColour.slice(1), 16) - parseInt(nextColour.slice(1), 16)) < 0x111111) // Checking for contrast
-                    currentColour = getRandomColour();
-                currentColour = nextColour;
-            }
+        }
+        
+        // Draw labels in a separate pass to ensure they're on top
+        for (const segment of segments) {
+            drawLabel(
+                ctx,
+                centerX,
+                centerY,
+                radius,
+                segment.startAngle,
+                segment.endAngle,
+                segment.key,
+                segment.value
+            );
         }
     }
 
@@ -86,30 +136,40 @@
         const radius = Math.min(width, height) / 2 - margin;
         const distanceFromCenter = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
         if (distanceFromCenter > radius) {
-            draw(false);
+            draw();
             clearTooltip();
             canvas.style.cursor = "default";
             return;
         }
 
-        // Angle calculation
+        // Angle calculation (evil)
         let angleFromCenter = Math.atan2(centerY - y, x - centerX);
         if (angleFromCenter < 0)
             angleFromCenter += Math.PI * 2;
         angleFromCenter = Math.PI * 2 - angleFromCenter;
 
-        let startAngle = 0;
-        let found: { key: string; value: number; colour: string } | null = null;
-        for (const item of legendItems) {
-            const segmentAngle = (item.value / total) * Math.PI * 2;
-            const endAngle = startAngle + segmentAngle;
-
-            if (angleFromCenter >= startAngle && angleFromCenter <= endAngle) {
-                found = item;
-                drawSlice(ctx, centerX, centerY, radius, startAngle, endAngle, highlightColour(item.colour, 30)); // Make the slice brighter
-            } else
-                drawSlice(ctx, centerX, centerY, radius, startAngle, endAngle, item.colour); // Draw the slice normally in case it was highlighted before
-            startAngle += segmentAngle;
+        let found = null;
+        for (const segment of segments) {
+            if (angleFromCenter >= segment.startAngle && angleFromCenter <= segment.endAngle) {
+                found = segment;
+                drawSlice(ctx, centerX, centerY, radius, segment.startAngle, segment.endAngle, highlightColour(segment.colour, 30));
+            } else {
+                drawSlice(ctx, centerX, centerY, radius, segment.startAngle, segment.endAngle, segment.colour);
+            }
+        }
+        
+        // Have to redraw all the labels to keep them on top
+        for (const segment of segments) {
+            drawLabel(
+                ctx,
+                centerX,
+                centerY,
+                radius,
+                segment.startAngle,
+                segment.endAngle,
+                segment.key,
+                segment.value
+            );
         }
 
         if (found) {
@@ -129,11 +189,3 @@
     bind:this={canvas}
     onmousemove={handleMouseMove}
 ></canvas>
-<div>
-    {#each legendItems as item}
-        <div class="legend-item">
-            <div class="colour-box" style="background-colour: {item.colour};"></div>
-            <span>{item.key}: {item.value}</span>
-        </div>
-    {/each}
-</div>

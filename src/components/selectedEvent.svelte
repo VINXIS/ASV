@@ -3,9 +3,14 @@
     import { rootObserver } from "./rootObserver";
     import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent } from "./states/strains.svelte";
     import Piechart from "./charts/pie.svelte";
-  import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent } from "./states/selectedEvent.svelte";
+    import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent } from "./states/selectedEvent.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
+    const eventCounts = $derived(getSelectedEvent()?.geneEvents.reduce((acc, event) => {
+            const eventType = event.event.eventType;
+            acc[eventType] = (acc[eventType] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>) || {});
 
     function arrayToString(arr?: number[]): string {
         if (!arr) return "N/A";
@@ -188,12 +193,27 @@
             </div>
             {#if selectedEvent.geneEvents.length > 0}
                 <div class="info-div">
-                    <h4>All events for this Gene:</h4>
+                    <h4>All events for this Gene (click to view):</h4>
                     <ul>
                         {#each selectedEvent.geneEvents as event}
                             {@const positions = getPositionsFromData(event.event)}
-                            <li style="color: {event.strain.colour}">
-                                ({event.strain.name}):
+                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                            <li
+                                style="color: {event.strain.colour}; cursor: pointer;"
+                                onclick={() => {
+                                    setSelectedEvent(event);
+                                    draw();
+                                }}
+                                onkeydown={() => {
+                                    setSelectedEvent(event);
+                                    draw();
+                                }}
+                            >
+                                {#if selectedEvent.strain.name === event.strain.name && selectedPositions.start === positions.start && selectedPositions.end === positions.end && selectedEvent.event.eventType === event.event.eventType && selectedEvent.event.strand === event.event.strand && selectedEvent.event.psiDiff === event.event.psiDiff && selectedEvent.event.FDR === event.event.FDR}
+                                    <strong>{event.strain.name} (Selected)</strong>
+                                {:else}
+                                    {event.strain.name}
+                                {/if}
                                 <ul>
                                     <li>Event Type: {event.event.eventType}</li>
                                     <li>FDR: {Math.abs(event.event.FDR) < 0.001 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
@@ -207,11 +227,7 @@
             {/if}
         </div>
         <Piechart
-            data={selectedEvent.geneEvents.reduce((acc, event) => {
-                const eventType = event.event.eventType;
-                acc[eventType] = (acc[eventType] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>)}
+            data={eventCounts}
         ></Piechart>
     </div>
 {/if}

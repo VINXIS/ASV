@@ -2,8 +2,8 @@
     import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type ReadType, type EventType, type Event as ASEvent, getStrains, setStrains } from "./states/strains.svelte";
     import { average, parseNumberArray } from "../../utils/numbers";
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
-    import { getRandomColour } from "../../utils/colour";
     import { readFileAsync } from "../../utils/files";
+  import { colourScale } from "../../utils/colour";
 
     let folderInput: HTMLInputElement;
     let isLoading = false;
@@ -215,7 +215,7 @@
                 } else { // Create new strain
                     const newStrain: Strain = {
                         name: strainName,
-                        colour: getRandomColour(),
+                        colour: colourScale[newStrains.length % colourScale.length],
                         visible: true,
                         A3SS: [],
                         A5SS: [],
@@ -250,11 +250,15 @@
                         originalStrains.splice(index, 1);
                 }
             }
-            
-            setStrains([
+            const totalStrains = [
                 ...originalStrains,
                 ...newStrains
-            ]);
+            ];
+            totalStrains.forEach((strain, i) => {
+                strain.colour = colourScale[i % colourScale.length];
+            });
+            
+            setStrains(totalStrains);
 
             successMessage = `Successfully loaded ${newStrains.length} strain(s)`;
             folderInput.value = "";

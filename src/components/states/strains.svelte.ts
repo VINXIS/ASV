@@ -1,4 +1,3 @@
-import { getRandomColour } from "../../../utils/colour";
 import { settings } from "./settings.svelte";
 
 export const eventTypes = [
@@ -8,6 +7,13 @@ export const eventTypes = [
     "RI",
     "SE",
 ] as const;
+export const eventColours: Record<EventType, string> = {
+    A3SS: "#4e79a7",
+    A5SS: "#e15759",
+    MXE: "#59a14f",
+    RI: "#af7aa1",
+    SE: "#9c755f",
+} as const;
 
 export type ReadType = "JC" | "JCEC";
 export type EventType = typeof eventTypes[number];
@@ -135,6 +141,8 @@ export interface Strain {
     SE: SEEvent[];
 }
 
+export const strainEventEmitter = new EventTarget();
+
 let strains = $state<Strain[]>([]);
 export function resetStrains() {
     strains = [];
@@ -151,13 +159,6 @@ export function toggleStrainVisibility(i: number) {
     strains[i].visible = !strains[i].visible;
     updateSelectFilteredStrains();
 }
-export function shuffleColours() {
-    strains.forEach(strain => {
-        strain.colour = getRandomColour();
-    });
-    updateSelectFilteredStrains();
-}
-
 export function getChromosomeList() {
     const chromosomes = new Set<string>();
     chromosomes.add("All");
@@ -182,7 +183,6 @@ export function getChromosomeList() {
 
 let selectFilteredStrains: Record<string, { colour: string; events: Event[] }> = {};
 let filteredStrains: Record<string, { colour: string; events: Event[] }> = {};
-export const updatedFilteredStrains = new EventTarget();
 export function updateSelectFilteredStrains() {
     selectFilteredStrains = {};
     for (const strain of strains.filter(s => s.visible)) {
@@ -211,7 +211,7 @@ export function updateFilteredStrains() {
                 filteredStrains[strainName].events.push(event);
         }
     }
-    updatedFilteredStrains.dispatchEvent(new Event("update"));
+    strainEventEmitter.dispatchEvent(new Event("updateFilteredStrains"));
 };
 export function getFilteredStrains() {
     return Object.entries(filteredStrains);
