@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import { colourScale, highlightColour } from "../../../utils/colour";
     import { updatedSelectedEvent } from "../states/selectedEvent.svelte";
     import { clearTooltip, setTooltipHTML } from "../states/tooltip.svelte";

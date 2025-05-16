@@ -11,13 +11,12 @@
     let filteredEvents = $derived(getSelectedEvent()?.geneEvents.filter(event => {
         if (!useFilter) return true;
 
-        const readTypeCheck = settings.selectedJunctionView === event.event.readType;
         const chromosomeCheck = settings.selectedChr === "All" || (event.event.chr && event.event.chr.startsWith(settings.selectedChr));
         const limitCheck = settings.extraneousPsiLimits === false || event.event.psi1Avg >= 0.05 && event.event.psi1Avg <= 0.95;
         const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh;
         const FDRCheck = event.event.FDR <= settings.FDRThresh;
         const psiDiffCheck = Math.abs(event.event.psiDiff) >= settings.psiDiffThresh;
-        return readTypeCheck && chromosomeCheck && limitCheck && readCountCheck && FDRCheck && psiDiffCheck;
+        return chromosomeCheck && limitCheck && readCountCheck && FDRCheck && psiDiffCheck;
     }) || []);
     const eventCounts = $derived(filteredEvents.reduce((acc, event) => {
             const eventType = event.event.eventType;
@@ -236,7 +235,6 @@
                                 <ul>
                                     
                                     <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
-                                    <li>Read Type: {event.event.readType}</li>
                                     <li>FDR: {Math.abs(event.event.FDR) < 0.001 && event.event.FDR !== 0 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
                                     <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
                                     <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start} - {positions.end}</li>

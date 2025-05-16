@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type ReadType, type EventType, type Event as ASEvent, getStrains, setStrains } from "./states/strains.svelte";
+    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, getStrains, setStrains } from "./states/strains.svelte";
     import { average, parseNumberArray } from "../../utils/numbers";
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { readFileAsync } from "../../utils/files";
@@ -11,19 +11,7 @@
     let errorMessage = "";
     let successMessage = "";
     
-    // Regex patterns to identify file types
-    const filePatterns = {
-        JC: /\.(MATS\.JC\.txt)$/i,
-        JCEC: /\.(MATS\.JCEC\.txt)$/i
-    };
-
-    function getReadType(filename: string): ReadType | null {
-        if (filePatterns.JC.test(filename))
-            return "JC";
-        if (filePatterns.JCEC.test(filename))
-            return "JCEC";
-        return null;
-    }
+    const filePattern = /\.(MATS\.JCEC\.txt)$/i;
 
     function getEventType(filename: string): EventType | null {
         let eventMatch = filename.match(/^(A3SS|A5SS|MXE|RI|SE)\./i);
@@ -34,13 +22,7 @@
     }
 
     function processFileContent(filename: string, content: string): ASEvent[] | null {
-        const readType = getReadType(filename);
         const eventType = getEventType(filename);
-        
-        if (!readType) {
-            console.warn(`Could not determine read type for file: ${filename}`);
-            return null;
-        }
 
         if (!eventType) {
             console.warn(`Could not determine event type for file: ${filename}`);
@@ -65,7 +47,6 @@
                     geneName: findValueInRow(row, headerMapping, "geneSymbol"),
                     chr: findValueInRow(row, headerMapping, "chr"),
                     strand: findValueInRow(row, headerMapping, "strand") as "+" | "-",
-                    readType,
                     textWidth: 0, // Default value
                     
                     incCount1: parseNumberArray(findValueInRow(row, headerMapping, "IJC_SAMPLE_1")),
@@ -280,10 +261,7 @@
 
     function isRelevantFile(filename: string): boolean {
         const basename = filename.split('/').pop() || filename;
-        return (
-            filePatterns.JC.test(basename) ||
-            filePatterns.JCEC.test(basename)
-        );
+        return filePattern.test(basename);
     }
     
     function inferStrainName(filename: string): string {
@@ -370,16 +348,13 @@
         </ul>
     {/if}
 
-    {#if getStrains().length > 0}
-        <div class="info">
-            <h3>Files Currently Parsed:</h3>
-            <ul>
-                <li><code>[AS_Event].MATS.JC.txt</code> - Junction counts only</li>
-                <li><code>[AS_Event].MATS.JCEC.txt</code> - Junction counts and exon body reads</li>
-            </ul>
-            <p>Where <code>[AS_Event]</code> is one of: A3SS, A5SS, MXE, RI, SE</p>
-        </div>
-    {/if}
+    <div class="info">
+        <p>
+            Parses <code>[AS_Event].MATS.JCEC.txt</code> files
+            <br>
+            Where <code>[AS_Event]</code> is one of: A3SS, A5SS, MXE, RI, SE
+        </p>
+    </div>
 </div>
 
 <style>

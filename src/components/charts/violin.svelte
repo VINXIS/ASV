@@ -1,8 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-  import { colourScale } from '../../../utils/colour';
-  import { rootObserver } from '../rootObserver';
-  import { setTooltipHTML } from '../states/tooltip.svelte';
+    import { colourScale } from '../../../utils/colour';
+    import { setTooltipHTML } from '../states/tooltip.svelte';
 
     let { data }: { data: Record<string, { min: number; max: number; values: number[] }> } = $props();
 

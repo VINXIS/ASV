@@ -34,18 +34,6 @@
         </div>
 
         <div class="control-group">
-            <label for="junction">Junction Read Type:</label>
-            <select
-                id="junction"
-                bind:value={settings.selectedJunctionView}
-                onchange={() => updateSelectFilteredStrains()}
-            >
-                <option value="JC">Junction Reads Only (JC)</option>
-                <option value="JCEC">Junction + Exon Reads (JCEC)</option>
-            </select>
-        </div>
-
-        <div class="control-group">
             <label for="readcount">Read Count Min Threshold:</label>
             <input
                 type="range"

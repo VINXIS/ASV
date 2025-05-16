@@ -15,7 +15,6 @@ export const eventColours: Record<EventType, string> = {
     SE: "#bab0ab",
 } as const;
 
-export type ReadType = "JC" | "JCEC";
 export type EventType = typeof eventTypes[number];
 
 export interface Event {
@@ -23,7 +22,6 @@ export interface Event {
     geneID: string;
     geneName: string;
     chr: string;
-    readType: ReadType;
     strand: "+" | "-";
 
     textWidth: number;
@@ -191,10 +189,9 @@ export function updateSelectFilteredStrains() {
     for (const strain of strains.filter(s => s.visible)) {
         selectFilteredStrains[strain.name] = { colour: strain.colour, events: [] };
         selectFilteredStrains[strain.name].events.push(...strain[settings.selectedEvent].filter((event) => {
-            const readTypeCheck = settings.selectedJunctionView === event.readType;
             const chromosomeCheck = settings.selectedChr === "All" || (event.chr && event.chr.startsWith(settings.selectedChr));
             const limitCheck = settings.extraneousPsiLimits === false || event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95;
-            return readTypeCheck && chromosomeCheck && limitCheck;
+            return chromosomeCheck && limitCheck;
         }));
     };
     updateFilteredStrains()

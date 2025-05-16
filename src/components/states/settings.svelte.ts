@@ -1,9 +1,8 @@
-import { updateSelectFilteredStrains, type EventType, type ReadType } from "./strains.svelte";
+import { updateSelectFilteredStrains, type EventType } from "./strains.svelte";
 
 export const settings = $state<{
     selectedChr: string;
     selectedEvent: EventType;
-    selectedJunctionView: ReadType;
 
     readCountThresh: number;
     FDRThresh: number;
@@ -12,7 +11,6 @@ export const settings = $state<{
 }>({
     selectedChr: "All",
     selectedEvent: "A3SS",
-    selectedJunctionView: "JCEC",
 
     readCountThresh: 10,
     FDRThresh: 0.05,
@@ -22,7 +20,6 @@ export const settings = $state<{
 export function resetSettings() {
     settings.selectedChr = "All";
     settings.selectedEvent = "A3SS";
-    settings.selectedJunctionView = "JCEC";
 
     settings.readCountThresh = 10;
     settings.FDRThresh = 0.05;
