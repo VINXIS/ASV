@@ -3,6 +3,7 @@ import "../styles/main.css";
 import Submit from "../components/submit.svelte";
 import Settings from "../components/settings.svelte";
 import Transcriptome from "../components/transcriptome.svelte";
+import StrainComparer from "../components/strainComparer.svelte";
 import SelectedEvent from "../components/selectedEvent.svelte";
 import Tooltip from "../components/tooltip.svelte";
 ---
@@ -40,6 +41,7 @@ import Tooltip from "../components/tooltip.svelte";
 		<Submit client:only="svelte" />
 		<Settings client:only="svelte" />
 		<Transcriptome client:only="svelte" />
+		<StrainComparer client:only="svelte" />
 		<SelectedEvent client:only="svelte" />
 		<Tooltip client:only="svelte" />
 	</body>

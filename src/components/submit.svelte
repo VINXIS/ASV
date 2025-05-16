@@ -4,6 +4,7 @@
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { readFileAsync } from "../../utils/files";
   import { colourScale } from "../../utils/colour";
+  import { addViolinValues } from "./states/violin.svelte";
 
     let folderInput: HTMLInputElement;
     let isLoading = false;
@@ -217,6 +218,7 @@
                         name: strainName,
                         colour: colourScale[newStrains.length % colourScale.length],
                         visible: true,
+
                         A3SS: [],
                         A5SS: [],
                         MXE: [],
@@ -229,6 +231,10 @@
 
                     newStrains.push(newStrain);
                 }
+
+                addViolinValues(`${strainName}_psi1`, events.map(event => event.psi1Avg));
+                addViolinValues(`${strainName}_psi2`, events.map(event => event.psi2Avg));
+                addViolinValues(`${strainName}_psiDiff`, events.map(event => event.psiDiff));
             }
 
             // Check for duplicates between original and new strains, if there are any, confirm overwrite
