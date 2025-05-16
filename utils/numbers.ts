@@ -5,5 +5,5 @@ export function average(arr: number[]): number {
 
 export function parseNumberArray(input: string): number[] {
     if (!input || input.trim() === '') return [];
-    return input.split(',').map(val => parseFloat(val) || 0);
+    return input.split(',').filter(val => !isNaN(parseFloat(val.trim()))).map(val => parseFloat(val.trim()));
 }

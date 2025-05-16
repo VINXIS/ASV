@@ -16,6 +16,11 @@ export function findValueInRow(row: string[], headerMapping: Record<string, numb
 }
 
 export function findNumberInRow(row: string[], headerMapping: Record<string, number>, headerName: string): number {
-    const value = findValueInRow(row, headerMapping, headerName);
-    return parseFloat(value) || NaN;
+    const rowVal = findValueInRow(row, headerMapping, headerName);
+    const value = parseFloat(rowVal);
+    if (isNaN(value)) {
+        console.warn(`Value for header "${headerName}" is not a valid number: "${rowVal}"`);
+        return NaN;
+    }
+    return value;
 }
