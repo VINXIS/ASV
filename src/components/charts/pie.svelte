@@ -10,7 +10,7 @@
     let { data }: { data: Record<string, number> } = $props();
     let segments: { key: string; value: number; colour: string; startAngle: number; endAngle: number }[] = $state([]);
     const total = $derived(Object.values(data).reduce((acc, val) => acc + val, 0));
-    const margin = 0; // Margin between canvas edge and pie chart, 0 because I want it to fill the entire canvas for now
+    const margin = 5; // Margin between canvas edge and pie chart, 0 because I want it to fill the entire canvas for now
 
     function drawSlice(
         ctx: CanvasRenderingContext2D,
@@ -184,7 +184,7 @@
         canvas.style.cursor = "default";
     }
     
-    onMount(() => draw());
+    $effect(() => draw());
     updatedSelectedEvent.addEventListener("update", () => draw());
 </script>
 

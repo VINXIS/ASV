@@ -2,15 +2,28 @@
     import { getPositionsFromData, getSplicingExons } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
     import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventColours } from "./states/strains.svelte";
-    import Piechart from "./charts/pie.svelte";
+    import PieChart from "./charts/pie.svelte";
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent } from "./states/selectedEvent.svelte";
+    import { settings } from "./states/settings.svelte";
 
     let canvas: HTMLCanvasElement | null = $state(null);
-    const eventCounts = $derived(getSelectedEvent()?.geneEvents.reduce((acc, event) => {
+    let useFilter: boolean = $state(false);
+    let filteredEvents = $derived(getSelectedEvent()?.geneEvents.filter(event => {
+        if (!useFilter) return true;
+
+        const readTypeCheck = settings.selectedJunctionView === event.event.readType;
+        const chromosomeCheck = settings.selectedChr === "All" || (event.event.chr && event.event.chr.startsWith(settings.selectedChr));
+        const limitCheck = settings.extraneousPsiLimits === false || event.event.psi1Avg >= 0.05 && event.event.psi1Avg <= 0.95;
+        const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh;
+        const FDRCheck = event.event.FDR <= settings.FDRThresh;
+        const psiDiffCheck = Math.abs(event.event.psiDiff) >= settings.psiDiffThresh;
+        return readTypeCheck && chromosomeCheck && limitCheck && readCountCheck && FDRCheck && psiDiffCheck;
+    }) || []);
+    const eventCounts = $derived(filteredEvents.reduce((acc, event) => {
             const eventType = event.event.eventType;
             acc[eventType] = (acc[eventType] || 0) + 1;
             return acc;
-        }, {} as Record<string, number>) || {});
+        }, {} as Record<string, number>));
 
     function arrayToString(arr?: number[]): string {
         if (!arr) return "N/A";
@@ -194,8 +207,14 @@
             {#if selectedEvent.geneEvents.length > 0}
                 <div class="info-div">
                     <h4>All events for this Gene (click to view):</h4>
+                    <button
+                        class="toggle-filter"
+                        onclick={() => useFilter = !useFilter}
+                    >
+                        {useFilter ? "Show All Events" : "Show Filtered Events (excl. Event Type)"}
+                    </button>
                     <ul>
-                        {#each selectedEvent.geneEvents as event}
+                        {#each filteredEvents as event}
                             {@const positions = getPositionsFromData(event.event)}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                             <li
@@ -217,7 +236,8 @@
                                 <ul>
                                     
                                     <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
-                                    <li>FDR: {Math.abs(event.event.FDR) < 0.001 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
+                                    <li>Read Type: {event.event.readType}</li>
+                                    <li>FDR: {Math.abs(event.event.FDR) < 0.001 && event.event.FDR !== 0 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
                                     <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
                                     <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start} - {positions.end}</li>
                                 </ul>
@@ -227,9 +247,9 @@
                 </div>
             {/if}
         </div>
-        <Piechart
+        <PieChart
             data={eventCounts}
-        ></Piechart>
+        ></PieChart>
     </div>
 {/if}
 

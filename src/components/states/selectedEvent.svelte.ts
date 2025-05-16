@@ -1,4 +1,4 @@
-import { getFilteredStrains, type Event } from "./strains.svelte";
+import { eventTypes, getStrains, type Event } from "./strains.svelte";
 
 let selectedEvent: {
     event: Event;
@@ -36,17 +36,15 @@ export function setSelectedEvent(event: {
         strain: event.strain,
         geneEvents: [],
     };
-    for (const [strainName, strainData] of getFilteredStrains()) {
-        const geneEvents = strainData.events.filter(e => e.geneID === event.event.geneID || e.geneName === event.event.geneName);
-        if (geneEvents.length > 0) {
-            selectedEvent.geneEvents.push(...geneEvents.map(e => ({
+    for (const strain of getStrains()) {
+        for (const eventType of eventTypes)
+            selectedEvent.geneEvents.push(...strain[eventType].filter(e => e.geneID === event.event.geneID || e.geneName === event.event.geneName).map((e => ({
                 strain: {
-                    name: strainName,
-                    colour: strainData.colour,
+                    name: strain.name,
+                    colour: strain.colour,
                 },
                 event: e,
-            })));
-        }
+            }))));
     }
     updatedSelectedEvent.dispatchEvent(new Event("update"));
 }
