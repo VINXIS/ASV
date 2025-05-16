@@ -176,6 +176,13 @@
         } else
             canvas.style.cursor = "default";
     }
+
+    function handleMouseLeave() {
+        if (!canvas) return;
+        draw();
+        clearTooltip();
+        canvas.style.cursor = "default";
+    }
     
     onMount(() => draw());
     updatedSelectedEvent.addEventListener("update", () => draw());
@@ -184,4 +191,5 @@
 <canvas
     bind:this={canvas}
     onmousemove={handleMouseMove}
+    onmouseleave={handleMouseLeave}
 ></canvas>
