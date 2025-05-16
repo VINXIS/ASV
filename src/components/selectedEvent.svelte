@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getPositionsFromData, getSplicingExons } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
-    import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent } from "./states/strains.svelte";
+    import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventColours } from "./states/strains.svelte";
     import Piechart from "./charts/pie.svelte";
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent } from "./states/selectedEvent.svelte";
 
@@ -215,7 +215,8 @@
                                     {event.strain.name}
                                 {/if}
                                 <ul>
-                                    <li>Event Type: {event.event.eventType}</li>
+                                    
+                                    <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
                                     <li>FDR: {Math.abs(event.event.FDR) < 0.001 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
                                     <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
                                     <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start} - {positions.end}</li>

@@ -8,11 +8,11 @@ export const eventTypes = [
     "SE",
 ] as const;
 export const eventColours: Record<EventType, string> = {
-    A3SS: "#4e79a7",
-    A5SS: "#e15759",
-    MXE: "#59a14f",
-    RI: "#af7aa1",
-    SE: "#9c755f",
+    A3SS: "#f28e2c",
+    A5SS: "#76b7b2",
+    MXE: "#edc949",
+    RI: "#ff9da7",
+    SE: "#bab0ab",
 } as const;
 
 export type ReadType = "JC" | "JCEC";
@@ -180,6 +180,9 @@ export function getChromosomeList() {
 }
 
 /// FILTERS ///
+
+// The filters for select inputs and otherwise are separated to optimize performance on the other inputs.
+// Two objects are also necessary in order to avoid the loss of strain data when restrictions are increased with non-select inputs
 
 let selectFilteredStrains: Record<string, { colour: string; events: Event[] }> = {};
 let filteredStrains: Record<string, { colour: string; events: Event[] }> = {};
