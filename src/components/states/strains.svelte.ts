@@ -190,15 +190,12 @@ export function updateSelectFilteredStrains() {
     selectFilteredStrains = {};
     for (const strain of strains.filter(s => s.visible)) {
         selectFilteredStrains[strain.name] = { colour: strain.colour, events: [] };
-        const typesToProcess = settings.selectedEvent === "All" ? eventTypes : [settings.selectedEvent];
-        for (const eventType of typesToProcess) {
-            selectFilteredStrains[strain.name].events.push(...strain[eventType].filter((event) => {
-                const readTypeCheck = settings.selectedJunctionView === event.readType;
-                const chromosomeCheck = settings.selectedChr === "All" || (event.chr && event.chr.startsWith(settings.selectedChr));
-                const limitCheck = settings.extraneousPsiLimits === false || event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95;
-                return readTypeCheck && chromosomeCheck && limitCheck;
-            }));
-        }
+        selectFilteredStrains[strain.name].events.push(...strain[settings.selectedEvent].filter((event) => {
+            const readTypeCheck = settings.selectedJunctionView === event.readType;
+            const chromosomeCheck = settings.selectedChr === "All" || (event.chr && event.chr.startsWith(settings.selectedChr));
+            const limitCheck = settings.extraneousPsiLimits === false || event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95;
+            return readTypeCheck && chromosomeCheck && limitCheck;
+        }));
     };
     updateFilteredStrains()
 }

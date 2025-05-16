@@ -2,7 +2,7 @@ import { updateSelectFilteredStrains, type EventType, type ReadType } from "./st
 
 export const settings = $state<{
     selectedChr: string;
-    selectedEvent: "All" | EventType;
+    selectedEvent: EventType;
     selectedJunctionView: ReadType;
 
     readCountThresh: number;
@@ -11,7 +11,7 @@ export const settings = $state<{
     extraneousPsiLimits: boolean;
 }>({
     selectedChr: "All",
-    selectedEvent: "All",
+    selectedEvent: "A3SS",
     selectedJunctionView: "JCEC",
 
     readCountThresh: 10,
@@ -21,7 +21,7 @@ export const settings = $state<{
 });
 export function resetSettings() {
     settings.selectedChr = "All";
-    settings.selectedEvent = "All";
+    settings.selectedEvent = "A3SS";
     settings.selectedJunctionView = "JCEC";
 
     settings.readCountThresh = 10;

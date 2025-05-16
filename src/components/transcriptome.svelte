@@ -47,7 +47,7 @@
         
         filteredStrains.forEach(([_, { events }]) => {
             for (const eventType of eventTypes) {
-                if (settings.selectedEvent !== "All" && settings.selectedEvent !== eventType)
+                if (settings.selectedEvent !== eventType)
                     continue;
 
                 events.forEach(event => {
@@ -388,6 +388,7 @@
     $effect(() => renderVisualization());
     strainEventEmitter.addEventListener("updateFilteredStrains", renderVisualization);
     rootObserver(renderVisualization);
+    window.addEventListener("resize", renderVisualization);
 </script>
 
 {#if getStrains().length > 0}

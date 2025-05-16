@@ -12,7 +12,6 @@
                 bind:value={settings.selectedEvent}
                 onchange={() => updateSelectFilteredStrains()}
             >
-                <option value="All">All</option>
                 <option value="A3SS">A3SS (Alternative 3' Splice Site)</option>
                 <option value="A5SS">A5SS (Alternative 5' Splice Site)</option>
                 <option value="MXE">MXE (Mutually Exclusive Exons)</option>
