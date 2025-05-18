@@ -1,4 +1,4 @@
-import { eventTypes, getStrains, type Event } from "./strains";
+import { eventTypes, strains, type Event } from "./strains";
 
 export interface SelectedEvent {
     event: Event;
@@ -38,7 +38,7 @@ export function setSelectedEvent(event: {
         strain: event.strain,
         geneEvents: [],
     };
-    for (const strain of getStrains()) {
+    for (const strain of strains) {
         for (const eventType of eventTypes)
             selectedEvent.geneEvents.push(...strain[eventType].filter(e => e.geneID === event.event.geneID || e.geneName === event.event.geneName).map((e => ({
                 strain: {

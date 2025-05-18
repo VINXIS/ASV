@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, getStrains, setStrains } from "./states/strains";
+    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, setStrains, strains } from "./states/strains";
     import { average, parseNumberArray } from "../../utils/numbers";
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { readFileAsync } from "../../utils/files";
@@ -215,8 +215,7 @@
             }
 
             // Check for duplicates between original and new strains, if there are any, confirm overwrite
-            const originalStrains = getStrains();
-            const duplicates = originalStrains.filter(originalStrain => 
+            const duplicates = strains.filter(originalStrain => 
                 newStrains.some(newStrain => originalStrain.name === newStrain.name)
             );
             if (duplicates.length > 0) {
@@ -228,13 +227,13 @@
 
                 // Remove duplicates from old strains
                 for (const duplicate of duplicates) {
-                    const index = originalStrains.findIndex(strain => strain.name === duplicate.name);
+                    const index = strains.findIndex(strain => strain.name === duplicate.name);
                     if (index !== -1)
-                        originalStrains.splice(index, 1);
+                        strains.splice(index, 1);
                 }
             }
             const totalStrains = [
-                ...originalStrains,
+                ...strains,
                 ...newStrains
             ];
             totalStrains.forEach((strain, i) => {
@@ -280,7 +279,7 @@
 
 <div class="rmats-uploader">
 
-    {#if getStrains().length === 0}
+    {#if strains.length === 0}
         <h2>Upload rMATS Data</h2>
         <div class="upload-option">
             <h3>Upload folder</h3>
@@ -331,10 +330,10 @@
         </div>
     {/if}
 
-    {#if getStrains().length > 0}
+    {#if strains.length > 0}
         <h3>Loaded Strains:</h3>
         <ul>
-            {#each getStrains() as strain}
+            {#each strains as strain}
                 {#if strain.visible}
                     <li>{strain.name}</li>
                 {:else}

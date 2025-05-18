@@ -153,13 +153,10 @@ export interface BasicStrainInfo {
 
 export const strainEventEmitter = new EventTarget();
 
-let strains: Strain[] = [];
+export let strains: Strain[] = [];
 export function resetStrains() {
     strains = [];
     updateSelectFilteredStrains();
-}
-export function getStrains() {
-    return strains;
 }
 export function getStrainLength() {
     return strains.length;
@@ -176,6 +173,20 @@ export function getBasicStrainInfo(): BasicStrainInfo[] {
         RI: strain.RI.length,
         SE: strain.SE.length,
     }));
+}
+export function getStrainEvents(strainName: string): Event[] {
+    const strain = strains.find(s => s.name === strainName);
+    if (!strain) {
+        console.warn(`Strain with name "${strainName}" not found.`);
+        return [];
+    }
+    const targetEventTypes = settings.selectedEventType === "All" ? eventTypes : [settings.selectedEventType];
+    const targetChr = settings.selectedChr === "All" ? null : settings.selectedChr;
+    return targetEventTypes.flatMap(eventType => strain[eventType] as Event[]).filter(event => {
+        const chromosomeCheck = !targetChr || (event.chr && event.chr.startsWith(targetChr));
+        const limitCheck = !settings.extraneousPsiLimits || (event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95);
+        return chromosomeCheck && limitCheck;
+    });
 }
 export function setStrains(newStrains: Strain[]) {
     strains = newStrains;
@@ -205,6 +216,10 @@ export function getChromosomeList() {
     });
 }
 
+/// GENE MAPPING ///
+// For each gene, get the array of strains that have events for it.
+export let geneMapping: Record<string, string[]> = {};
+
 /// FILTERS ///
 
 // The filters for select inputs and otherwise are separated to optimize performance on the other inputs.
@@ -228,14 +243,19 @@ export function updateSelectFilteredStrains() {
 }
 export function updateFilteredStrains() {
     filteredStrains = {};
+    geneMapping = {};
     for (const [strainName, strainData] of Object.entries(selectFilteredStrains)) {
         filteredStrains[strainName] = { colour: strainData.colour, events: [] };
         for (const event of strainData.events) {
             const readCountCheck = event.incCount1Avg >= settings.readCountThresh;
             const FDRCheck = event.FDR <= settings.FDRThresh;
             const psiDiffCheck = Math.abs(event.psiDiff) >= settings.psiDiffThresh;
-            if (readCountCheck && FDRCheck && psiDiffCheck)
+            if (readCountCheck && FDRCheck && psiDiffCheck) {
                 filteredStrains[strainName].events.push(event);
+                if (!geneMapping[event.geneID])
+                    geneMapping[event.geneID] = [];
+                geneMapping[event.geneID].push(strainName);
+            }
         }
     }
     strainEventEmitter.dispatchEvent(new Event("updateFilteredStrains"));
