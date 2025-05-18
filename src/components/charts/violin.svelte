@@ -1,9 +1,9 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { colourScale } from '../../../utils/colour';
-    import { setTooltipHTML } from '../states/tooltip';
+    import { clearTooltip, setTooltipHTML } from '../states/tooltip';
     import { strainEventEmitter } from '../states/strains';
-  import { rootObserver } from '../rootObserver';
+    import { rootObserver } from '../rootObserver';
 
     const { data, keys, updateOnFilter }: { data: number[][]; keys: string[]; updateOnFilter: boolean } = $props();
 
@@ -228,11 +228,11 @@
             }
         }
 
-        setTooltipHTML("");
+        clearTooltip();
     }
 
     function handleMouseLeave() {
-        setTooltipHTML("");
+        clearTooltip();
     }
 
     rootObserver(drawViolinPlots);

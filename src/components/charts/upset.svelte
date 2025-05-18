@@ -56,9 +56,19 @@
         strainEventEmitter.addEventListener("updateFilteredStrains", () => rerender(true));
 </script>
 
-Upset Chart of Overlap between Genes Affected by Events Between Strains
 <div
     class="upset"
     bind:this={div}
     style="width: 100%; height: 100%;"
-></div>
+>
+    {#if elems.length > 0}
+        Upset Chart of Overlap between Genes Affected by Events Between Strains
+    {/if}
+</div>
+
+<style>
+    .upset {
+        display: flex;
+        flex-direction: column-reverse;
+    }
+</style>
