@@ -394,6 +394,12 @@
         renderVisualization();
     }
 
+    function resetView() {
+        zoomLevel = 1;
+        xOffset = 0;
+        renderVisualization();
+    }
+
     updatedSelectedEvent.addEventListener("update", () => {
         if (!canvas)
             return;
@@ -422,6 +428,12 @@
 </script>
 
 <div class="visualization_box" style="display: {strains.length > 0 ? 'flex' : 'none'};">
+    <button
+        class="reset-view-button"
+        onclick={resetView}
+    >
+        Reset View
+    </button>
     <div class="legend">
         {#each strains as strain, i}
             <div
@@ -472,6 +484,10 @@
     flex-direction: column;
     align-items: flex-start;
     width: 100%;
+}
+
+.reset-view-button {
+    margin-bottom: 10px;
 }
 
 .legend {
