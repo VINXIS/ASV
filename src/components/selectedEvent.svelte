@@ -148,9 +148,9 @@
         
         // Optional: Add appropriate labels depending on splicing type
         ctx.fillStyle = '#4285F4';
-        ctx.fillText(`Inclusion ${selectedEvent.event.psi1Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
         ctx.fillStyle = '#DB4437';
-        ctx.fillText(`Exclusion ${(1-selectedEvent.event.psi1Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`1 - Ψ1: ${(1-selectedEvent.event.psi1Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
     }
 
     function changeFilter(value: boolean) {
