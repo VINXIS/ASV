@@ -33,6 +33,10 @@
             theme: root.classList.contains("dark") ? "dark" : "light",
             alternatingBackgroundColor: root.classList.contains("dark") ? "#2c2c2c" : "#f0f0f0",
             hoverHintColor: root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e",
+            fontSizes: {
+                axisTick: "12px",
+                barLabel: "12px",
+            },
             selection,
             onHover
         });
