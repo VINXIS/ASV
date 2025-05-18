@@ -34,7 +34,7 @@
     {#each strains as strain, i}
         {#if strain.visible}
             <div>
-                <h3>Strain {i + 1}: {strain.name}</h3>
+                <h3>Strain {i + 1}: {strain.name} ({strainPieData[strain.name] ? strainPieData[strain.name].A3SS + strainPieData[strain.name].A5SS + strainPieData[strain.name].MXE + strainPieData[strain.name].RI + strainPieData[strain.name].SE : 0} events)</h3>
                 <ViolinChart
                     keys={["Ψ1", "Ψ2"]}
                     data={[strainViolinData[`${strain.name}_psi1`], strainViolinData[`${strain.name}_psi2`]]}

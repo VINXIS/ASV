@@ -80,11 +80,6 @@
         ctx.fillText('-log10(FDR)', 0, 0);
         ctx.restore();
         
-        // Graph title
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 18px Inconsolata';
-        ctx.fillText('Volcano Plot', margin.left + width / 2, 25);
-        
         // Draw tick marks and labels for X-axis
         const xTicks = 5;
         ctx.textAlign = 'center';
@@ -286,7 +281,9 @@
     if (updateOnFilter)
         strainEventEmitter.addEventListener("updateFilteredStrains", drawVolcanoPlot);
 </script>
+
 <div class="volcano-legend">
+    <h3>Unfiltered Events Volcano Plot</h3>
     <div class="legend-item">
         <span class="legend-color significant-up"></span>
         <span>Significant Upregulated</span>
