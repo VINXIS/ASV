@@ -3,6 +3,7 @@
     import { colourScale } from '../../../utils/colour';
     import { setTooltipHTML } from '../states/tooltip';
     import { strainEventEmitter } from '../states/strains';
+  import { rootObserver } from '../rootObserver';
 
     const { data, keys, updateOnFilter }: { data: number[][]; keys: string[]; updateOnFilter: boolean } = $props();
 
@@ -234,8 +235,9 @@
         setTooltipHTML("");
     }
 
+    rootObserver(drawViolinPlots);
     if (updateOnFilter)
-        strainEventEmitter.addEventListener("updateFilteredStrains", () => drawViolinPlots());
+        strainEventEmitter.addEventListener("updateFilteredStrains", drawViolinPlots);
     onMount(() => {
         const resizeObserver = new ResizeObserver(() => {
             if (canvas) {

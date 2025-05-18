@@ -159,7 +159,7 @@
     }
 
     rootObserver(draw);
-    updatedSelectedEvent.addEventListener("update", () => updateValues());
+    updatedSelectedEvent.addEventListener("update", updateValues);
 </script>
 
 {#if selectedEvent}
@@ -184,6 +184,10 @@
                 <p><strong>FDR:</strong> {Math.abs(selectedEvent.event.FDR) < 0.001 ? selectedEvent.event.FDR.toExponential(3) : selectedEvent.event.FDR.toFixed(3)}</p>
                 <p><strong>Inclusion Level Difference (ΔΨ):</strong> {Math.abs(selectedEvent.event.psiDiff) < 0.001 ? selectedEvent.event.psiDiff.toExponential(3) : selectedEvent.event.psiDiff.toFixed(3)}</p>
                 <p><strong>Total Position:</strong> {selectedPositions.start} - {selectedPositions.end}</p>
+                <p><strong>Inclusion Level 1 Avg.:</strong> {Math.abs(selectedEvent.event.psi1Avg) < 0.001 ? selectedEvent.event.psi1Avg.toExponential(3) : selectedEvent.event.psi1Avg.toFixed(3)}</p>
+                <p><strong>Inclusion Level 2 Avg.:</strong> {Math.abs(selectedEvent.event.psi2Avg) < 0.001 ? selectedEvent.event.psi2Avg.toExponential(3) : selectedEvent.event.psi2Avg.toFixed(3)}</p>
+                <p><strong>Read Count 1 Avg.:</strong> {selectedEvent.event.incCount1Avg.toFixed(3)}</p>
+                <p><strong>Read Count 2 Avg.:</strong> {selectedEvent.event.incCount2Avg.toFixed(3)}</p>
                 {#if selectedEvent.event.eventType === 'SE'}
                     {@const seEvent = selectedEvent.event as SEEvent}
                     <p><strong>Target Exon:</strong> {seEvent.exonStart} - {seEvent.exonEnd}</p>
