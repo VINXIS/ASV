@@ -218,7 +218,10 @@ export function getChromosomeList() {
 
 /// GENE MAPPING ///
 // For each gene, get the array of strains that have events for it.
-export let geneMapping: Record<string, string[]> = {};
+let geneMapping: { name: string; sets: string[] }[] = [];
+export function getGeneMapping() {
+    return geneMapping;
+}
 
 /// FILTERS ///
 
@@ -243,7 +246,7 @@ export function updateSelectFilteredStrains() {
 }
 export function updateFilteredStrains() {
     filteredStrains = {};
-    geneMapping = {};
+    const geneObj: Record<string, string[]> = {};
     for (const [strainName, strainData] of Object.entries(selectFilteredStrains)) {
         filteredStrains[strainName] = { colour: strainData.colour, events: [] };
         for (const event of strainData.events) {
@@ -252,12 +255,14 @@ export function updateFilteredStrains() {
             const psiDiffCheck = Math.abs(event.psiDiff) >= settings.psiDiffThresh;
             if (readCountCheck && FDRCheck && psiDiffCheck) {
                 filteredStrains[strainName].events.push(event);
-                if (!geneMapping[event.geneID])
-                    geneMapping[event.geneID] = [];
-                geneMapping[event.geneID].push(strainName);
+                if (!geneObj[event.geneID])
+                    geneObj[event.geneID] = [];
+                if (!geneObj[event.geneID].includes(strainName))
+                    geneObj[event.geneID].push(strainName);
             }
         }
     }
+    geneMapping = Object.entries(geneObj).map(([name, sets]) => ({ name, sets }));
     strainEventEmitter.dispatchEvent(new Event("updateFilteredStrains"));
 };
 export function getFilteredStrains() {

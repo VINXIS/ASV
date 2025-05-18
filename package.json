@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@astrojs/svelte": "^7.0.13",
+    "@upsetjs/bundle": "^1.11.0",
     "astro": "^5.7.12",
     "svelte": "^5.28.2",
     "typescript": "^5.8.3"

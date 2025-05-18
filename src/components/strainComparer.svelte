@@ -1,15 +1,18 @@
 <script lang="ts">
     import PieChart from "./charts/pie.svelte";
+    import UpsetChart from "./charts/upset.svelte";
     import ViolinChart from "./charts/violin.svelte";
     import VolcanoChart from "./charts/volcano.svelte";
-    import { getBasicStrainInfo, getFilteredStrains, getStrainEvents, strainEventEmitter, type BasicStrainInfo, type Event } from "./states/strains";
+    import { getBasicStrainInfo, getFilteredStrains, getGeneMapping, getStrainEvents, strainEventEmitter, type BasicStrainInfo, type Event } from "./states/strains";
 
     let strains: BasicStrainInfo[] = [];
     let strainViolinData: Record<string, number[]> = {};
     let strainPieData: Record<string, { A3SS: number; A5SS: number; MXE: number; RI: number; SE: number }> = {};
     let strainVolcanoData: Record<string, Event[]> = {};
+    let geneMapping: { name: string; sets: string[] }[] = [];
     strainEventEmitter.addEventListener("updateFilteredStrains", () => {
         strains = getBasicStrainInfo();
+        geneMapping = getGeneMapping();
         const filteredStrains = getFilteredStrains();
         strainViolinData = {};
         filteredStrains.forEach(([strainName, { events }]) => {
@@ -49,6 +52,10 @@
             </div>
         {/if}
     {/each}
+	<UpsetChart
+        elems={geneMapping}
+        updateOnFilter
+    ></UpsetChart>
 </div>
 
 <style>
@@ -56,10 +63,11 @@
         display: flex;
         gap: 20px;
         justify-content: space-between;
+        flex-wrap: wrap;
     }
 
     .strain-comparer > div {
-        width: calc(33.33% - 20px);
+        width: calc(33.33% - 40px);
         display: flex;
         flex-direction: column;
         border: 1px solid var(--border-colour);
