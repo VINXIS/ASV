@@ -62,7 +62,6 @@
     .strain-comparer {
         display: flex;
         gap: 20px;
-        justify-content: space-between;
         flex-wrap: wrap;
     }
 
