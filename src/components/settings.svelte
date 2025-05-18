@@ -13,10 +13,22 @@
     }[] = [];
 
     let existingStrains = false;
-    let filteredStrains = getFilteredStrains();
+    let filteredStrains = getFilteredStrains().flatMap(s => s[1].events.map(e => ({
+            event: e,
+            strain: {
+                name: s[0],
+                colour: s[1].colour,
+            }
+        }))).sort((a, b) => a.event.geneName.localeCompare(b.event.geneName));
     strainEventEmitter.addEventListener("updateFilteredStrains", () => {
         existingStrains = getStrainLength() > 0;
-        filteredStrains = getFilteredStrains();
+        filteredStrains = getFilteredStrains().flatMap(s => s[1].events.map(e => ({
+            event: e,
+            strain: {
+                name: s[0],
+                colour: s[1].colour,
+            }
+        }))).sort((a, b) => a.event.geneName.localeCompare(b.event.geneName));
     });
     
     function resetSettings() {
@@ -37,13 +49,7 @@
             results = [];
             return;
         }
-        results = filteredStrains.flatMap(s => s[1].events.map(e => ({
-            event: e,
-            strain: {
-                name: s[0],
-                colour: s[1].colour,
-            }
-        }))).filter(event => {
+        results = filteredStrains.filter(event => {
             const geneName = event.event.geneName.toLowerCase().replace(/\s+/g, "_");
             const geneId = event.event.geneID.toLowerCase().replace(/\s+/g, "_");
             return geneName.includes(searchKey) || geneId.includes(searchKey);
@@ -71,7 +77,7 @@
             <input
                 type="text"
                 id="gene-search"
-                placeholder="Enter gene name or ID"
+                placeholder="Enter gene name/ID"
                 bind:value={geneSearch}
                 oninput={searchGene}
             />
