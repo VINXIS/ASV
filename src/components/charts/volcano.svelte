@@ -4,11 +4,13 @@
     import { strainEventEmitter, type Event } from '../states/strains';
     import { setSelectedEvent } from '../states/selectedEvent';
   import { rootObserver } from '../rootObserver';
+  import { setTooltipHTML } from '../states/tooltip';
 
     // Component state
     let canvas: HTMLCanvasElement | null = null;
     let { data, updateOnFilter, strain }: { data: Event[]; updateOnFilter: boolean; strain: { name: string; colour: string } } = $props();
     let hoveredPoint: Event | null = null;
+    let previousHoveredPoint: Event | null = null;
     const margin = { top: 50, right: 50, bottom: 50, left: 60 };
 
     function getCanvasSizeAndScales() {
@@ -116,7 +118,7 @@
         
         // P-value threshold line
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
+        ctx.strokeStyle = 'rgb(150, 150, 150)';
         ctx.setLineDash([5, 5]);
         ctx.moveTo(margin.left, yScale(fdrThreshold));
         ctx.lineTo(margin.left + width, yScale(fdrThreshold));
@@ -125,7 +127,7 @@
         
         // Fold change threshold lines
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
+        ctx.strokeStyle = 'rgb(150, 150, 150)';
         ctx.setLineDash([5, 5]);
         ctx.moveTo(xScale(fcThresholdPos), margin.top);
         ctx.lineTo(xScale(fcThresholdPos), margin.top + height);
@@ -145,31 +147,53 @@
                             Math.abs(d.psiDiff) > settings.psiDiffThresh;
             
             // Color based on significance and fold change direction
-            let color = 'rgba(150, 150, 150, 0.7)'; // grey for non-significant
+            let color = 'rgb(150, 150, 150)'; // grey for non-significant
             
             if (isSignificant)
-                color = d.psiDiff > 0 ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 0, 255, 0.7)';
+                color = d.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
             
-            // Check if this is the hovered point
-            if (hoveredPoint && hoveredPoint.geneName === d.geneName && isSignificant) {
-                ctx.beginPath();
-                ctx.arc(pointX, pointY, 5, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
-                ctx.fill();
-                
-                // Draw label for hovered point
-                ctx.fillStyle = textColour;
-                ctx.textAlign = 'left';
-                ctx.font = '12px Inconsolata';
-                ctx.fillText(`${d.geneName} (FDR=${d.FDR.toExponential(2)}, ΔΨ=${d.psiDiff.toFixed(2)})`, pointX + 8, pointY - 8);
-            } else {
-                // Draw normal point
-                ctx.beginPath();
-                ctx.arc(pointX, pointY, 3, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.fill();
-            }
+            ctx.beginPath();
+            ctx.arc(pointX, pointY, 3, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
         });
+    }
+
+    function drawHoveredPoints() {
+        // Change the previous ones back to red/blue/grey and the current ones to green
+        if (!canvas)
+            return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx)
+            return;
+        const canvasSizeAndScales = getCanvasSizeAndScales();
+        if (!canvasSizeAndScales)
+            return;
+        const { xScale, yScale } = canvasSizeAndScales;
+        ctx.lineWidth = 1;
+        if (previousHoveredPoint) {
+            const prevX = xScale(previousHoveredPoint.psiDiff);
+            const prevY = yScale(previousHoveredPoint.negLogFDR);
+            const isSignificant = previousHoveredPoint.FDR < settings.FDRThresh && 
+                            Math.abs(previousHoveredPoint.psiDiff) > settings.psiDiffThresh;
+           
+            let prevColor = 'rgb(150, 150, 150)'; // grey for non-significant
+            if (isSignificant)
+                prevColor = previousHoveredPoint.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
+
+            ctx.beginPath();
+            ctx.arc(prevX, prevY, 3, 0, Math.PI * 2);
+            ctx.fillStyle = prevColor;
+            ctx.fill();
+        }
+        if (hoveredPoint) {
+            const pointX = xScale(hoveredPoint.psiDiff);
+            const pointY = yScale(hoveredPoint.negLogFDR);
+            ctx.beginPath();
+            ctx.arc(pointX, pointY, 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgb(0, 255, 0)'; // Highlight hovered point in green
+            ctx.fill();
+        }
     }
     
     // Handle mouse movement for tooltips
@@ -188,7 +212,7 @@
         let minDist = Infinity;
         let closestPoint = null;
         
-        data.forEach(d => {
+        for (const d of data) {
             const pointX = xScale(d.psiDiff);
             const pointY = yScale(d.negLogFDR);
             const dist = Math.sqrt((x - pointX) ** 2 + (y - pointY) ** 2);
@@ -197,18 +221,28 @@
                 minDist = dist;
                 closestPoint = d;
             }
-        });
+        };
         
+        previousHoveredPoint = hoveredPoint;
         hoveredPoint = closestPoint;
         canvas.style.cursor = hoveredPoint ? 'pointer' : 'default';
-        drawVolcanoPlot(); // Redraw with hover effect
+        setTooltipHTML(hoveredPoint ? 
+            `<div style="color: ${hoveredPoint.FDR < settings.FDRThresh ? Math.abs(hoveredPoint.psiDiff) > settings.psiDiffThresh ? (hoveredPoint.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)') : 'rgb(150, 150, 150)' : 'rgb(150, 150, 150)'};">
+                <strong>${hoveredPoint.geneName}</strong><br>
+                FDR: ${hoveredPoint.FDR.toExponential(2)}<br>
+                ΔΨ: ${hoveredPoint.psiDiff.toFixed(2)}
+            </div>` : 
+            "");
+        drawHoveredPoints(); // Redraw with hover effect
     }
     
     function handleMouseLeave() {
+        previousHoveredPoint = hoveredPoint;
         hoveredPoint = null;
+        setTooltipHTML("");
         if (canvas)
             canvas.style.cursor = 'default';
-        drawVolcanoPlot(); // Redraw without hover effect
+        drawHoveredPoints(); // Redraw without hover effect
     }
 
     function handleCanvasClick() {
@@ -277,12 +311,12 @@
 }
 
 .legend-color.significant-up {
-    background-color: rgba(255, 0, 0, 0.7);
+    background-color: rgb(255, 0, 0);
 }
 .legend-color.significant-down {
-    background-color: rgba(0, 0, 255, 0.7);
+    background-color: rgb(0, 0, 255);
 }
 .legend-color.not-significant {
-    background-color: rgba(150, 150, 150, 0.7);
+    background-color: rgb(150, 150, 150);
 }
 </style>
