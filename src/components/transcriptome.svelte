@@ -3,7 +3,7 @@
     import { getPositionsFromData } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
     import { settings } from "./states/settings";
-    import { setSelectedEvent } from "./states/selectedEvent";
+    import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent } from "./states/selectedEvent";
     import { clearTooltip, setTooltipHTML } from "./states/tooltip";
 
     let strains: BasicStrainInfo[] = [];
@@ -17,6 +17,8 @@
 
     let zoomLevel = 1;
     let xOffset = 0;
+    let minPos = Infinity;
+    let maxPos = -Infinity;
     let drag = false;
 
     let geneLabels: { x: number; y: number; text: string; textWidth: number; event: ASEvent; strain: { name: string; colour: string; } }[] = [];
@@ -46,8 +48,8 @@
         if (filteredStrains.length === 0)
             return;
 
-        let minPos = Infinity;
-        let maxPos = -Infinity;
+        minPos = Infinity;
+        maxPos = -Infinity;
         
         geneLabels = [];
         geneRegions = [];
@@ -247,10 +249,8 @@
 
     function handleMouseLeave() {
         drag = false;
-        if (hoveredPoint) {
-            clearTooltip();
-            hoveredPoint = null;
-        }
+        clearTooltip();
+        hoveredPoint = null;
     };
 
     function handleMouseMove(event: MouseEvent) {
@@ -355,7 +355,9 @@
                 strain: strain,
             };
         } else {
-            clearTooltip();
+            // Write bp position of mouse in tooltip
+            const bpPosition = Math.round((mouseX / canvas.width) * (maxPos - minPos) + minPos);
+            setTooltipHTML(`<strong>Position:</strong> ${bpPosition} bp`);
             canvas.style.cursor = "default";
             hoveredPoint = null;
         }
@@ -392,6 +394,28 @@
         renderVisualization();
     }
 
+    updatedSelectedEvent.addEventListener("update", () => {
+        if (!canvas)
+            return;
+
+        // Alter zoomLevel and xOffset based on selected event to cover the beginning and end of the event
+        const selectedEvent = getSelectedEvent();
+        if (!selectedEvent)
+            return;
+        const positions = [getPositionsFromData(selectedEvent.event), ...selectedEvent.geneEvents.map(event => getPositionsFromData(event.event))];
+        // Add a buffer of 1000 bp
+        const selectedMin = Math.min(...positions.map(pos => pos.start)) - 1000;
+        const selectedMax = Math.max(...positions.map(pos => pos.end)) + 1000;
+        const newRange = selectedMax - selectedMin;
+
+        const totalRange = maxPos - minPos;
+
+        zoomLevel = totalRange / newRange;
+        xOffset = (selectedMin - minPos) / totalRange;
+        if (xOffset < 0) xOffset = 0;
+
+        renderVisualization();
+    });
     strainEventEmitter.addEventListener("updateFilteredStrains", renderVisualization);
     rootObserver(renderVisualization);
     window.addEventListener("resize", renderVisualization);

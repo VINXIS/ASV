@@ -1,10 +1,22 @@
 <script lang="ts">
+  import { setSelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
-    import { getChromosomeList, getStrainLength, strainEventEmitter, updateFilteredStrains, updateSelectFilteredStrains } from "./states/strains";
+    import { getChromosomeList, getFilteredStrains, getStrainLength, strainEventEmitter, updateFilteredStrains, updateSelectFilteredStrains, type Event } from "./states/strains";
+
+    let geneSearch = "";
+    let results: {
+        event: Event;
+        strain: {
+            name: string;
+            colour: string;
+        };
+    }[] = [];
 
     let existingStrains = false;
+    let filteredStrains = getFilteredStrains();
     strainEventEmitter.addEventListener("updateFilteredStrains", () => {
         existingStrains = getStrainLength() > 0;
+        filteredStrains = getFilteredStrains();
     });
     
     function resetSettings() {
@@ -19,10 +31,66 @@
         updateSelectFilteredStrains();
     }
 
+    function searchGene() {
+        const searchKey = geneSearch.trim().toLowerCase().replace(/\s+/g, "_");
+        if (searchKey === "") {
+            results = [];
+            return;
+        }
+        results = filteredStrains.flatMap(s => s[1].events.map(e => ({
+            event: e,
+            strain: {
+                name: s[0],
+                colour: s[1].colour,
+            }
+        }))).filter(event => {
+            const geneName = event.event.geneName.toLowerCase().replace(/\s+/g, "_");
+            const geneId = event.event.geneID.toLowerCase().replace(/\s+/g, "_");
+            return geneName.includes(searchKey) || geneId.includes(searchKey);
+        });
+    }
+
+    function select(gene: {
+        event: Event;
+        strain: {
+            name: string;
+            colour: string;
+        };
+    }) {
+        setSelectedEvent(gene);
+        geneSearch = "";
+        results = [];
+    }
+
 </script>
 
 {#if existingStrains}
     <div id="controls">
+        <div class="control-group">
+            <label for="gene-search">Search for Gene:</label>
+            <input
+                type="text"
+                id="gene-search"
+                placeholder="Enter gene name or ID"
+                bind:value={geneSearch}
+                oninput={searchGene}
+            />
+            <div class="search-results">
+                {#each results as gene}
+                    <div
+                        class="result-item"
+                        onclick={() => select(gene)}
+                        onkeydown={() => select(gene)}
+                        tabindex="0"
+                        role="button"
+                    >
+                        <span class="gene-name">{gene.event.geneName}</span>
+                        <span class="gene-id">({gene.event.geneID})</span>
+                        <span class="event-type">Type: {gene.event.eventType}</span>
+                    </div>
+                {/each}
+            </div>
+        </div>
         <div class="control-group">
             <label for="splicing-type">Alternative Splicing Type:</label>
             <select
@@ -120,6 +188,31 @@
     }
 
     .control-group {
+        position: relative;
         margin-bottom: 10px;
+    }
+
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: var(--background-colour);
+        z-index: 10;
+    }
+
+    .result-item {
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .result-item:nth-child(odd) {
+        background-color: var(--background-colour-secondary);
+    }
+
+    .result-item:hover {
+        background-color: var(--background-colour-tertiary);
     }
 </style>

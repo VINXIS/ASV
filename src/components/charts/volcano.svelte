@@ -2,13 +2,14 @@
     import { onMount } from 'svelte';
     import { settings } from '../states/settings';
     import { strainEventEmitter, type Event } from '../states/strains';
-    import { setSelectedEvent } from '../states/selectedEvent';
-  import { rootObserver } from '../rootObserver';
-  import { setTooltipHTML } from '../states/tooltip';
+    import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent } from '../states/selectedEvent';
+    import { rootObserver } from '../rootObserver';
+    import { clearTooltip, setTooltipHTML } from '../states/tooltip';
 
     // Component state
     let canvas: HTMLCanvasElement | null = null;
     let { data, updateOnFilter, strain }: { data: Event[]; updateOnFilter: boolean; strain: { name: string; colour: string } } = $props();
+    let selectedEvent = getSelectedEvent();
     let hoveredPoint: Event | null = null;
     let previousHoveredPoint: Event | null = null;
     const margin = { top: 50, right: 50, bottom: 50, left: 60 };
@@ -194,6 +195,14 @@
             ctx.fillStyle = 'rgb(0, 255, 0)'; // Highlight hovered point in green
             ctx.fill();
         }
+        if (selectedEvent) {
+            const selectedX = xScale(selectedEvent.event.psiDiff);
+            const selectedY = yScale(selectedEvent.event.negLogFDR);
+            ctx.beginPath();
+            ctx.arc(selectedX, selectedY, 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgb(255, 255, 0)'; // Highlight selected point in yellow
+            ctx.fill();
+        }
     }
     
     // Handle mouse movement for tooltips
@@ -239,7 +248,7 @@
     function handleMouseLeave() {
         previousHoveredPoint = hoveredPoint;
         hoveredPoint = null;
-        setTooltipHTML("");
+        clearTooltip();
         if (canvas)
             canvas.style.cursor = 'default';
         drawHoveredPoints(); // Redraw without hover effect
@@ -265,6 +274,14 @@
         });
         if (canvas)
             resizeObserver.observe(canvas.parentElement!);
+    });
+    updatedSelectedEvent.addEventListener("update", () => {
+        if (selectedEvent)
+            previousHoveredPoint = selectedEvent.event;
+        selectedEvent = getSelectedEvent();
+        if (selectedEvent?.strain.name !== strain.name)
+            selectedEvent = null; // Reset if the selected event is not from the current strain
+        drawHoveredPoints();
     });
     if (updateOnFilter)
         strainEventEmitter.addEventListener("updateFilteredStrains", drawVolcanoPlot);

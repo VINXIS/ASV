@@ -1,10 +1,14 @@
 :root {
     color-scheme: light;
     --background-colour: #ffffff;
+    --background-colour-secondary: #f0f0f0;
+    --background-colour-tertiary: #e0e0e0;
 }
 .dark {
     color-scheme: dark;
     --background-colour: #1b1a21;
+    --background-colour-secondary: #2c2b33;
+    --background-colour-tertiary: #3c3b43;
 }
 
 * {
