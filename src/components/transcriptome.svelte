@@ -1,12 +1,17 @@
 <script lang="ts">
-    import { type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, getStrains, toggleStrainVisibility, strainEventEmitter } from "./states/strains.svelte";
+    import { type Event as ASEvent, type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventTypes, getFilteredStrains, toggleStrainVisibility, strainEventEmitter, getBasicStrainInfo, type BasicStrainInfo } from "./states/strains";
     import { getPositionsFromData } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
-    import { settings } from "./states/settings.svelte";
-    import { setSelectedEvent } from "./states/selectedEvent.svelte";
-    import { clearTooltip, setTooltipHTML } from "./states/tooltip.svelte";
+    import { settings } from "./states/settings";
+    import { setSelectedEvent } from "./states/selectedEvent";
+    import { clearTooltip, setTooltipHTML } from "./states/tooltip";
 
-    let canvas: HTMLCanvasElement | null = $state(null);
+    let strains: BasicStrainInfo[] = [];
+    strainEventEmitter.addEventListener("updateFilteredStrains", () => {
+        strains = getBasicStrainInfo();
+    });
+
+    let canvas: HTMLCanvasElement | null = null;
 
     let hoveredPoint: { event: ASEvent; strain: { name: string; colour: string; } } | null = null;
 
@@ -32,12 +37,14 @@
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
         const canvasWidth = Math.max(screenWidth - 40, 1200);
-        const canvasHeight = Math.max(screenHeight, 400);
+        const canvasHeight = Math.max(screenHeight / 2, 400);
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const filteredStrains = getFilteredStrains();
+        if (filteredStrains.length === 0)
+            return;
 
         let minPos = Infinity;
         let maxPos = -Infinity;
@@ -47,7 +54,7 @@
         
         filteredStrains.forEach(([_, { events }]) => {
             for (const eventType of eventTypes) {
-                if (settings.selectedEvent !== eventType)
+                if (settings.selectedEventType !== "All" && settings.selectedEventType !== eventType)
                     continue;
 
                 events.forEach(event => {
@@ -385,57 +392,54 @@
         renderVisualization();
     }
 
-    $effect(() => renderVisualization());
     strainEventEmitter.addEventListener("updateFilteredStrains", renderVisualization);
     rootObserver(renderVisualization);
     window.addEventListener("resize", renderVisualization);
 </script>
 
-{#if getStrains().length > 0}
-    <div class="visualization_box">
-        <div class="legend">
-            {#each getStrains() as strain, i}
-                <div
-                    onclick={() => toggleStrainVisibility(i)}
-                    onkeydown={() => toggleStrainVisibility(i)}
-                    onmouseover={() => setTooltipHTML(
-                        `<p><strong>A3SS:</strong> ${strain.A3SS.length}</p>
-                        <p><strong>A5SS:</strong> ${strain.A5SS.length}</p>
-                        <p><strong>MXE:</strong> ${strain.MXE.length}</p>
-                        <p><strong>RI:</strong> ${strain.RI.length}</p>
-                        <p><strong>SE:</strong> ${strain.SE.length}</p>`
-                    )}
-                    onfocus={() => setTooltipHTML(
-                        `<p><strong>A3SS:</strong> ${strain.A3SS.length}</p>
-                        <p><strong>A5SS:</strong> ${strain.A5SS.length}</p>
-                        <p><strong>MXE:</strong> ${strain.MXE.length}</p>
-                        <p><strong>RI:</strong> ${strain.RI.length}</p>
-                        <p><strong>SE:</strong> ${strain.SE.length}</p>`
-                    )}
-                    onmouseout={clearTooltip}
-                    onblur={clearTooltip}
-                    tabindex="-1"
-                    role="button"
-                    style="text-decoration: {strain.visible ? 'none' : 'line-through'}"
-                >
-                    <span
-                        class="color-box"
-                        style="background-color: {strain.colour}; display: {strain.visible ? 'inline-block' : 'none'};"
-                    ></span> {strain.name} ({strain.A3SS.length + strain.A5SS.length + strain.MXE.length + strain.RI.length + strain.SE.length} events)
-                </div>
-            {/each}
-        </div>
-        <canvas
-            bind:this={canvas}
-            onmousedown={handleMouseDown}
-            onmouseup={handleMouseUp}
-            onmouseleave={handleMouseLeave}
-            onmousemove={handleMouseMove}
-            onclick={handleCanvasClick}
-            onwheel={handleWheel}
-        ></canvas>
+<div class="visualization_box" style="display: {strains.length > 0 ? 'flex' : 'none'};">
+    <div class="legend">
+        {#each strains as strain, i}
+            <div
+                onclick={() => toggleStrainVisibility(i)}
+                onkeydown={() => toggleStrainVisibility(i)}
+                onmouseover={() => setTooltipHTML(
+                    `Unfiltered Counts:<br><p><strong>A3SS:</strong> ${strain.A3SS}</p>
+                    <p><strong>A5SS:</strong> ${strain.A5SS}</p>
+                    <p><strong>MXE:</strong> ${strain.MXE}</p>
+                    <p><strong>RI:</strong> ${strain.RI}</p>
+                    <p><strong>SE:</strong> ${strain.SE}</p>`
+                )}
+                onfocus={() => setTooltipHTML(
+                    `Unfiltered Counts:<br><p><strong>A3SS:</strong> ${strain.A3SS}</p>
+                    <p><strong>A5SS:</strong> ${strain.A5SS}</p>
+                    <p><strong>MXE:</strong> ${strain.MXE}</p>
+                    <p><strong>RI:</strong> ${strain.RI}</p>
+                    <p><strong>SE:</strong> ${strain.SE}</p>`
+                )}
+                onmouseout={clearTooltip}
+                onblur={clearTooltip}
+                tabindex="-1"
+                role="button"
+                style="text-decoration: {strain.visible ? 'none' : 'line-through'}"
+            >
+                <span
+                    class="color-box"
+                    style="background-color: {strain.colour}; display: {strain.visible ? 'inline-block' : 'none'};"
+                ></span> {strain.name}
+            </div>
+        {/each}
     </div>
-{/if}
+    <canvas
+        bind:this={canvas}
+        onmousedown={handleMouseDown}
+        onmouseup={handleMouseUp}
+        onmouseleave={handleMouseLeave}
+        onmousemove={handleMouseMove}
+        onclick={handleCanvasClick}
+        onwheel={handleWheel}
+    ></canvas>
+</div>
 
 <style>
 .visualization_box {

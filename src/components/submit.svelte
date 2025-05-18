@@ -1,10 +1,9 @@
 <script lang="ts">
-    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, getStrains, setStrains } from "./states/strains.svelte";
+    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, getStrains, setStrains } from "./states/strains";
     import { average, parseNumberArray } from "../../utils/numbers";
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { readFileAsync } from "../../utils/files";
-  import { colourScale } from "../../utils/colour";
-  import { addViolinValues } from "./states/violin.svelte";
+    import { colourScale } from "../../utils/colour";
 
     let folderInput: HTMLInputElement;
     let isLoading = false;
@@ -64,6 +63,7 @@
                     
                     pVal: findNumberInRow(row, headerMapping, "PValue"),
                     FDR: findNumberInRow(row, headerMapping, "FDR"),
+                    negLogFDR: -Math.log10(findNumberInRow(row, headerMapping, "FDR")),
                     
                     psi1: parseNumberArray(findValueInRow(row, headerMapping, "IncLevel1")),
                     psi2: parseNumberArray(findValueInRow(row, headerMapping, "IncLevel2")),
@@ -212,10 +212,6 @@
 
                     newStrains.push(newStrain);
                 }
-
-                addViolinValues(`${strainName}_psi1`, events.map(event => event.psi1Avg));
-                addViolinValues(`${strainName}_psi2`, events.map(event => event.psi2Avg));
-                addViolinValues(`${strainName}_psiDiff`, events.map(event => event.psiDiff));
             }
 
             // Check for duplicates between original and new strains, if there are any, confirm overwrite

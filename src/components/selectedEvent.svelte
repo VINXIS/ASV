@@ -1,37 +1,56 @@
 <script lang="ts">
     import { getPositionsFromData, getSplicingExons } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
-    import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventColours } from "./states/strains.svelte";
+    import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventColours, type Event } from "./states/strains";
     import PieChart from "./charts/pie.svelte";
-    import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent } from "./states/selectedEvent.svelte";
-    import { settings } from "./states/settings.svelte";
+    import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
+    import { settings } from "./states/settings";
 
-    let canvas: HTMLCanvasElement | null = $state(null);
-    let useFilter: boolean = $state(false);
-    let filteredEvents = $derived(getSelectedEvent()?.geneEvents.filter(event => {
-        if (!useFilter) return true;
-
-        const chromosomeCheck = settings.selectedChr === "All" || (event.event.chr && event.event.chr.startsWith(settings.selectedChr));
-        const limitCheck = settings.extraneousPsiLimits === false || event.event.psi1Avg >= 0.05 && event.event.psi1Avg <= 0.95;
-        const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh;
-        const FDRCheck = event.event.FDR <= settings.FDRThresh;
-        const psiDiffCheck = Math.abs(event.event.psiDiff) >= settings.psiDiffThresh;
-        return chromosomeCheck && limitCheck && readCountCheck && FDRCheck && psiDiffCheck;
-    }) || []);
-    const eventCounts = $derived(filteredEvents.reduce((acc, event) => {
-            const eventType = event.event.eventType;
-            acc[eventType] = (acc[eventType] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>));
+    let canvas: HTMLCanvasElement | null = null;
+    let selectedEvent: SelectedEvent | null = null;
+    let useFilter = true;
+    let filteredEvents: {
+        strain: {
+            name: string;
+            colour: string;
+        };
+        event: Event;
+    }[] = [];
+    let eventCounts: Record<string, number> = {};
 
     function arrayToString(arr?: number[]): string {
         if (!arr) return "N/A";
         return arr.length > 0 ? arr.join(",") : "N/A";
     }
 
+    function updateValues() {
+        selectedEvent = getSelectedEvent();
+        if (!selectedEvent)
+            return;
+        filteredEvents = selectedEvent.geneEvents.filter(event => {
+            if (!useFilter) return true;
+
+            const chromosomeCheck = settings.selectedChr === "All" || (event.event.chr && event.event.chr.startsWith(settings.selectedChr));
+            const limitCheck = settings.extraneousPsiLimits === false || event.event.psi1Avg >= 0.05 && event.event.psi1Avg <= 0.95;
+            const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh;
+            const FDRCheck = event.event.FDR <= settings.FDRThresh;
+            const psiDiffCheck = Math.abs(event.event.psiDiff) >= settings.psiDiffThresh;
+            return chromosomeCheck && limitCheck && readCountCheck && FDRCheck && psiDiffCheck;
+        }) || [];
+        eventCounts = filteredEvents.reduce((acc, event) => {
+            const eventType = event.event.eventType;
+            acc[eventType] = (acc[eventType] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        draw();
+    }
+
     function draw() {
         const selectedEvent = getSelectedEvent();
-        if (!canvas || !selectedEvent) return;
+        if (!canvas || !selectedEvent) {
+            requestAnimationFrame(draw);
+            return;
+        }
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
@@ -134,13 +153,16 @@
         ctx.fillText(`Exclusion ${(1-selectedEvent.event.psi1Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
     }
 
-    $effect(() => draw());
+    function changeFilter(value: boolean) {
+        useFilter = value;
+        updateValues();
+    }
+
     rootObserver(draw);
-    updatedSelectedEvent.addEventListener("update", draw);
+    updatedSelectedEvent.addEventListener("update", () => updateValues());
 </script>
 
-{#if getSelectedEvent()}
-    {@const selectedEvent = getSelectedEvent()!}
+{#if selectedEvent}
     {@const selectedPositions = getPositionsFromData(selectedEvent.event)}
     <div id="splicing-detail-panel">
         <button
@@ -208,7 +230,7 @@
                     <h4>All events for this Gene (click to view):</h4>
                     <button
                         class="toggle-filter"
-                        onclick={() => useFilter = !useFilter}
+                        onclick={() => changeFilter(!useFilter)}
                     >
                         {useFilter ? "Show All Events" : "Show Filtered Events (excl. Event Type)"}
                     </button>
@@ -245,9 +267,12 @@
                 </div>
             {/if}
         </div>
-        <PieChart
-            data={eventCounts}
-        ></PieChart>
+        <div style="width: 50%">
+            <PieChart
+                data={eventCounts}
+                updateOnFilter={false}
+            ></PieChart>
+        </div>
     </div>
 {/if}
 

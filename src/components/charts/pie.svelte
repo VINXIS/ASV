@@ -1,14 +1,15 @@
 <script lang="ts">
     import { colourScale, highlightColour } from "../../../utils/colour";
-    import { updatedSelectedEvent } from "../states/selectedEvent.svelte";
-    import { clearTooltip, setTooltipHTML } from "../states/tooltip.svelte";
-    import { eventColours, type EventType } from "../states/strains.svelte";
+    import { updatedSelectedEvent } from "../states/selectedEvent";
+    import { clearTooltip, setTooltipHTML } from "../states/tooltip";
+    import { eventColours, strainEventEmitter, type EventType } from "../states/strains";
+    import { onMount } from "svelte";
 
-    let canvas: HTMLCanvasElement | null = $state(null);
+    let canvas: HTMLCanvasElement | null = null;
 
-    let { data }: { data: Record<string, number> } = $props();
-    let segments: { key: string; value: number; colour: string; startAngle: number; endAngle: number }[] = $state([]);
-    const total = $derived(Object.values(data).reduce((acc, val) => acc + val, 0));
+    let { data, updateOnFilter }: { data: Record<string, number>; updateOnFilter: boolean } = $props();
+    let segments: { key: string; value: number; colour: string; startAngle: number; endAngle: number }[] = [];
+    let total = Object.values(data).reduce((acc, val) => acc + val, 0);
     const margin = 5; // Margin between canvas edge and pie chart, 0 because I want it to fill the entire canvas for now
 
     function drawSlice(
@@ -74,7 +75,10 @@
     }
 
     function draw() {
-        if (!canvas) return;
+        if (!canvas) {
+            requestAnimationFrame(draw);
+            return;
+        }
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         
@@ -171,9 +175,7 @@
             setTooltipHTML(
                 `<div style="color: ${found.colour};"><strong>${found.key}</strong>: ${found.value} (${((found.value / total) * 100).toFixed(2)}%)</div>`,
             );
-            canvas.style.cursor = "pointer";
-        } else
-            canvas.style.cursor = "default";
+        }
     }
 
     function handleMouseLeave() {
@@ -182,9 +184,27 @@
         clearTooltip();
         canvas.style.cursor = "default";
     }
+
+    function updateValues () {
+        segments = [];
+        total = Object.values(data).reduce((acc, val) => acc + val, 0);
+        draw();
+    }
     
-    $effect(() => draw());
-    updatedSelectedEvent.addEventListener("update", () => draw());
+    onMount(() => {
+        const resizeObserver = new ResizeObserver(() => {
+            if (canvas) {
+                canvas.width = canvas.parentElement?.clientWidth || 300;
+                canvas.height = canvas.parentElement?.clientWidth || 300;
+                draw();
+            }
+        });
+        if (canvas)
+            resizeObserver.observe(canvas.parentElement!);
+    });
+    updatedSelectedEvent.addEventListener("update", updateValues);
+    if (updateOnFilter)
+        strainEventEmitter.addEventListener("updateFilteredStrains", updateValues);
 </script>
 
 <canvas

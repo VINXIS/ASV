@@ -1,6 +1,6 @@
-import { eventTypes, getStrains, type Event } from "./strains.svelte";
+import { eventTypes, getStrains, type Event } from "./strains";
 
-let selectedEvent: {
+export interface SelectedEvent {
     event: Event;
     strain: {
         name: string;
@@ -13,7 +13,9 @@ let selectedEvent: {
         };
         event: Event;
     }[];
-} | null = $state(null);
+};
+
+let selectedEvent: SelectedEvent | null = null;
 export const updatedSelectedEvent = new EventTarget();
 export function getSelectedEvent() {
     return selectedEvent;

@@ -1,4 +1,4 @@
-import type { ASSEvent, Event, MXEEvent, RIEvent, SEEvent } from "./states/strains.svelte";
+import type { ASSEvent, Event, MXEEvent, RIEvent, SEEvent } from "./states/strains";
 
 export function getPositionsFromData(data: Event) {
     let startPos = Infinity;

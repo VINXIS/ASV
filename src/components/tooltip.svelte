@@ -1,12 +1,13 @@
 <script lang="ts">
-    import { getTooltipHTML } from "./states/tooltip.svelte";
+    import { getTooltipHTML, updatedTooltipHTML } from "./states/tooltip";
 
-    let tooltip: HTMLDivElement | null = $state(null);
-    const display: "none" | "block" = $derived.by(() => {
-        if (!tooltip) return "none";
-        
-        const html = getTooltipHTML();
-        return html ? "block" : "none";
+    let tooltip: HTMLDivElement | null = null;
+    let tooltipHTML: string | null = null;
+    let display: "none" | "block" = "none";
+
+    updatedTooltipHTML.addEventListener("update", () => {
+        tooltipHTML = getTooltipHTML();
+        display = tooltipHTML ? "block" : "none";
     });
 
     // Listen to mouse events in the webpage and update the tooltip position
@@ -22,7 +23,7 @@
     style="display: {display};"
     bind:this={tooltip}
 >
-    {@html getTooltipHTML()}
+    {@html tooltipHTML}
 </div>
 
 <style>

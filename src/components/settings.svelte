@@ -1,17 +1,36 @@
 <script lang="ts">
-    import { resetSettings, settings } from "./states/settings.svelte";
-    import { getChromosomeList, getStrains, updateFilteredStrains, updateSelectFilteredStrains } from "./states/strains.svelte";
+    import { settings } from "./states/settings";
+    import { getChromosomeList, getStrainLength, strainEventEmitter, updateFilteredStrains, updateSelectFilteredStrains } from "./states/strains";
+
+    let existingStrains = false;
+    strainEventEmitter.addEventListener("updateFilteredStrains", () => {
+        existingStrains = getStrainLength() > 0;
+    });
+    
+    function resetSettings() {
+        settings.selectedChr = "All";
+        settings.selectedEventType = "All";
+
+        settings.readCountThresh = 10;
+        settings.FDRThresh = 0.05;
+        settings.psiDiffThresh = 0.2;
+        settings.extraneousPsiLimits = false;
+
+        updateSelectFilteredStrains();
+    }
+
 </script>
 
-{#if getStrains().length > 0}
+{#if existingStrains}
     <div id="controls">
         <div class="control-group">
             <label for="splicing-type">Alternative Splicing Type:</label>
             <select
                 id="splicing-type"
-                bind:value={settings.selectedEvent}
-                onchange={() => updateSelectFilteredStrains()}
+                bind:value={settings.selectedEventType}
+                onchange={updateSelectFilteredStrains}
             >
+                <option value="All">All</option>
                 <option value="A3SS">A3SS (Alternative 3' Splice Site)</option>
                 <option value="A5SS">A5SS (Alternative 5' Splice Site)</option>
                 <option value="MXE">MXE (Mutually Exclusive Exons)</option>
@@ -25,7 +44,7 @@
             <select
                 id="chromosome"
                 bind:value={settings.selectedChr}
-                onchange={() => updateSelectFilteredStrains()}
+                onchange={updateSelectFilteredStrains}
             >
                 {#each getChromosomeList() as chromosome}
                     <option value={chromosome}>{chromosome}</option>
@@ -42,7 +61,7 @@
                 max="1000"
                 step="1"
                 bind:value={settings.readCountThresh}
-                oninput={() => updateFilteredStrains()}
+                oninput={updateFilteredStrains}
             />
             <span>{settings.readCountThresh}</span>
         </div>
@@ -56,7 +75,7 @@
                 max="1"
                 step="0.01"
                 bind:value={settings.FDRThresh}
-                oninput={() => updateFilteredStrains()}
+                oninput={updateFilteredStrains}
             />
             <span>{settings.FDRThresh}</span>
         </div>
@@ -70,7 +89,7 @@
                 max="1"
                 step="0.01"
                 bind:value={settings.psiDiffThresh}
-                oninput={() => updateFilteredStrains()}
+                oninput={updateFilteredStrains}
             />
             <span>{settings.psiDiffThresh}</span>
         </div>
@@ -81,12 +100,12 @@
                 type="checkbox"
                 id="limit"
                 bind:checked={settings.extraneousPsiLimits}
-                onchange={() => updateSelectFilteredStrains()}
+                onchange={updateSelectFilteredStrains}
             />
         </div>
 
         <button
-            onclick={() => resetSettings()}
+            onclick={resetSettings}
         >
             Reset Settings
         </button>

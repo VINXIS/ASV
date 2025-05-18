@@ -1,4 +1,4 @@
-import { settings } from "./settings.svelte";
+import { settings } from "./settings";
 
 export const eventTypes = [
     "A3SS",
@@ -41,6 +41,7 @@ export interface Event {
     
     pVal: number;
     FDR: number;
+    negLogFDR: number;
     
     psi1: number[];
     psi2: number[];
@@ -139,15 +140,42 @@ export interface Strain {
     SE: SEEvent[];
 }
 
+export interface BasicStrainInfo {
+    name: string;
+    colour: string;
+    visible: boolean;
+    A3SS: number;
+    A5SS: number;
+    MXE: number;
+    RI: number;
+    SE: number;
+}
+
 export const strainEventEmitter = new EventTarget();
 
-let strains = $state<Strain[]>([]);
+let strains: Strain[] = [];
 export function resetStrains() {
     strains = [];
     updateSelectFilteredStrains();
 }
 export function getStrains() {
     return strains;
+}
+export function getStrainLength() {
+    return strains.length;
+}
+export function getBasicStrainInfo(): BasicStrainInfo[] {
+    return strains.map(strain => ({
+        name: strain.name,
+        colour: strain.colour,
+        visible: strain.visible,
+
+        A3SS: strain.A3SS.length,
+        A5SS: strain.A5SS.length,
+        MXE: strain.MXE.length,
+        RI: strain.RI.length,
+        SE: strain.SE.length,
+    }));
 }
 export function setStrains(newStrains: Strain[]) {
     strains = newStrains;
@@ -188,11 +216,13 @@ export function updateSelectFilteredStrains() {
     selectFilteredStrains = {};
     for (const strain of strains.filter(s => s.visible)) {
         selectFilteredStrains[strain.name] = { colour: strain.colour, events: [] };
-        selectFilteredStrains[strain.name].events.push(...strain[settings.selectedEvent].filter((event) => {
-            const chromosomeCheck = settings.selectedChr === "All" || (event.chr && event.chr.startsWith(settings.selectedChr));
-            const limitCheck = settings.extraneousPsiLimits === false || event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95;
-            return chromosomeCheck && limitCheck;
-        }));
+        const targetEventTypes = settings.selectedEventType === "All" ? eventTypes : [settings.selectedEventType];
+        for (const eventType of targetEventTypes)
+            selectFilteredStrains[strain.name].events.push(...strain[eventType].filter((event) => {
+                const chromosomeCheck = settings.selectedChr === "All" || (event.chr && event.chr.startsWith(settings.selectedChr));
+                const limitCheck = settings.extraneousPsiLimits === false || event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95;
+                return chromosomeCheck && limitCheck;
+            }));
     };
     updateFilteredStrains()
 }

@@ -1,4 +1,4 @@
-let tooltipHTML: string | null = $state(null);
+let tooltipHTML: string | null = null;
 export const updatedTooltipHTML = new EventTarget();
 export function getTooltipHTML() {
     return tooltipHTML;
