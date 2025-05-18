@@ -1,11 +1,13 @@
 <script lang="ts">
     import PieChart from "./charts/pie.svelte";
-    import ViolinPlot from "./charts/violin.svelte";
-    import { getBasicStrainInfo, getFilteredStrains, strainEventEmitter, type BasicStrainInfo } from "./states/strains";
+    import ViolinChart from "./charts/violin.svelte";
+    import VolcanoChart from "./charts/volcano.svelte";
+    import { getBasicStrainInfo, getFilteredStrains, getStrainEvents, strainEventEmitter, type BasicStrainInfo, type Event } from "./states/strains";
 
     let strains: BasicStrainInfo[] = [];
     let strainViolinData: Record<string, number[]> = {};
     let strainPieData: Record<string, { A3SS: number; A5SS: number; MXE: number; RI: number; SE: number }> = {};
+    let strainVolcanoData: Record<string, Event[]> = {};
     strainEventEmitter.addEventListener("updateFilteredStrains", () => {
         strains = getBasicStrainInfo();
         const filteredStrains = getFilteredStrains();
@@ -20,6 +22,7 @@
             };
             strainViolinData[`${strainName}_psi1`] = events.map(event => event.psi1Avg);
             strainViolinData[`${strainName}_psi2`] = events.map(event => event.psi2Avg);
+            strainVolcanoData[strainName] = getStrainEvents(strainName);
         });
     });
 </script>
@@ -29,15 +32,20 @@
         {#if strain.visible}
             <div>
                 <h3>Strain {i + 1}: {strain.name}</h3>
-                <ViolinPlot
+                <ViolinChart
                     keys={["Ψ1", "Ψ2"]}
                     data={[strainViolinData[`${strain.name}_psi1`], strainViolinData[`${strain.name}_psi2`]]}
                     updateOnFilter
-                ></ViolinPlot>
+                ></ViolinChart>
                 <PieChart
                     data={strainPieData[strain.name]}
                     updateOnFilter
                 ></PieChart>
+                <VolcanoChart
+                    data={strainVolcanoData[strain.name]}
+                    strain={{ name: strain.name, colour: strain.colour }}
+                    updateOnFilter
+                ></VolcanoChart>
             </div>
         {/if}
     {/each}
