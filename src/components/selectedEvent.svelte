@@ -238,7 +238,7 @@
         <div class="info-divs">
             <div class="info-div">
                 <p>
-                    <strong>Possible transcript (Based on ~2 bp away for all exons):</strong>
+                    <strong>Possible transcript (Based on ~2 bp leniency for exons):</strong>
                     {#if selectedTranscript}
                         <a href="http://www.ncbi.nlm.nih.gov/nuccore/{selectedTranscript}" target="_blank" rel="noopener noreferrer">
                             {selectedTranscript}
