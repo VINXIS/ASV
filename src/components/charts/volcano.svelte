@@ -12,6 +12,7 @@
     let selectedEvent = getSelectedEvent();
     let hoveredPoint: Event | null = null;
     let previousHoveredPoint: Event | null = null;
+    let useReadCountFilter = $state(false);
     const margin = { top: 50, right: 50, bottom: 50, left: 60 };
 
     function getCanvasSizeAndScales() {
@@ -164,8 +165,9 @@
             
             // Color based on significance and fold change direction
             let color = 'rgb(150, 150, 150)'; // grey for non-significant
-            
-            if (isSignificant)
+
+            const readCountCheck = d.incCount1Avg >= settings.readCountThresh;
+            if (isSignificant && (!useReadCountFilter || readCountCheck))
                 color = d.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
             
             ctx.beginPath();
@@ -173,6 +175,15 @@
             ctx.fillStyle = color;
             ctx.fill();
         });
+
+        if (selectedEvent) {
+            const selectedX = xScale(selectedEvent.event.psiDiff);
+            const selectedY = yScale(selectedEvent.event.negLogFDR);
+            ctx.beginPath();
+            ctx.arc(selectedX, selectedY, 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgb(255, 255, 0)'; // Highlight selected point in yellow
+            ctx.fill();
+        }
     }
 
     function drawHoveredPoints() {
@@ -192,9 +203,10 @@
             const prevY = yScale(previousHoveredPoint.negLogFDR);
             const isSignificant = previousHoveredPoint.FDR < settings.FDRThresh && 
                             Math.abs(previousHoveredPoint.psiDiff) > settings.psiDiffThresh;
+            const readCountCheck = previousHoveredPoint.incCount1Avg >= settings.readCountThresh;
            
             let prevColor = 'rgb(150, 150, 150)'; // grey for non-significant
-            if (isSignificant)
+            if (isSignificant && (!useReadCountFilter || readCountCheck))
                 prevColor = previousHoveredPoint.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
 
             ctx.beginPath();
@@ -278,6 +290,11 @@
         });
     }
 
+    function toggleReadCountFilter(value: boolean) {
+        useReadCountFilter = value;
+        drawVolcanoPlot();
+    }
+
     rootObserver(drawVolcanoPlot);
     onMount(() => {
         const resizeObserver = new ResizeObserver(() => {
@@ -316,6 +333,12 @@
         <span class="legend-color not-significant"></span>
         <span>Not Significant</span>
     </div>
+
+    <button
+        onclick={() => toggleReadCountFilter(!useReadCountFilter)}
+    >
+        {useReadCountFilter ? 'Disable Read Count Filter' : 'Enable Read Count Filter'}
+    </button>
 </div>
 <canvas
     bind:this={canvas}

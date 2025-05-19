@@ -3,12 +3,15 @@
     import { rootObserver } from "./rootObserver";
     import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventColours, type Event } from "./states/strains";
     import PieChart from "./charts/pie.svelte";
+    import ViolinChart from "./charts/violin.svelte";
+    import VolcanoChart from "./charts/volcano.svelte";
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
     let useFilter = true;
+    let readCountThresh = true;
     let filteredEvents: {
         strain: {
             name: string;
@@ -28,14 +31,16 @@
         if (!selectedEvent)
             return;
         filteredEvents = selectedEvent.geneEvents.filter(event => {
+            const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh;
+            if (readCountThresh && !readCountCheck)
+                return false;
             if (!useFilter) return true;
 
             const chromosomeCheck = settings.selectedChr === "All" || (event.event.chr && event.event.chr.startsWith(settings.selectedChr));
             const limitCheck = settings.extraneousPsiLimits === false || event.event.psi1Avg >= 0.05 && event.event.psi1Avg <= 0.95;
-            const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh;
             const FDRCheck = event.event.FDR <= settings.FDRThresh;
             const psiDiffCheck = Math.abs(event.event.psiDiff) >= settings.psiDiffThresh;
-            return chromosomeCheck && limitCheck && readCountCheck && FDRCheck && psiDiffCheck;
+            return chromosomeCheck && limitCheck && FDRCheck && psiDiffCheck;
         }) || [];
         eventCounts = filteredEvents.reduce((acc, event) => {
             const eventType = event.event.eventType;
@@ -158,6 +163,11 @@
         updateValues();
     }
 
+    function changeReadCountThresh(value: boolean) {
+        readCountThresh = value;
+        updateValues();
+    }
+
     rootObserver(draw);
     updatedSelectedEvent.addEventListener("update", updateValues);
 </script>
@@ -228,15 +238,35 @@
                     <p><strong>Intron to Downstream Count:</strong> {arrayToString(riEvent.intronToDownstreamCount)}</p>
                     <p><strong>Upstream to Downstream Count:</strong> {arrayToString(riEvent.upstreamToDownstreamCount)}</p>
                 {/if}
+                <ViolinChart
+                    keys={["Ψ1", "Ψ2"]}
+                    data={[[selectedEvent.event.psi1Avg, ...selectedEvent.geneEvents.map(e => e.event.psi1Avg)], [selectedEvent.event.psi2Avg, ...selectedEvent.geneEvents.map(e => e.event.psi2Avg)]]}
+                    updateOnFilter
+                ></ViolinChart>
+                <PieChart
+                    data={eventCounts}
+                ></PieChart>
+                <VolcanoChart
+                    data={[selectedEvent.event, ...selectedEvent.geneEvents.map(e => e.event)]}
+                    strain={{ name: selectedEvent.event.geneName, colour: selectedEvent.strain.colour }}
+                    updateOnFilter
+                ></VolcanoChart>
             </div>
             {#if selectedEvent.geneEvents.length > 0}
                 <div class="info-div">
                     <h4>All events for this Gene ({filteredEvents.length} events)</h4>
                     <button
                         class="toggle-filter"
+                        style="margin-bottom: 10px;"
                         onclick={() => changeFilter(!useFilter)}
                     >
                         {useFilter ? "Show All Events" : "Show Filtered Events (excl. Event Type)"}
+                    </button>
+                    <button
+                        class="toggle-filter"
+                        onclick={() => changeReadCountThresh(!readCountThresh)}
+                    >
+                        {readCountThresh ? "Show All Read Counts" : "Enforce Read Count Threshold"}
                     </button>
                     <ul>
                         {#each filteredEvents as event}
@@ -263,6 +293,7 @@
                                     <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
                                     <li>FDR: {Math.abs(event.event.FDR) < 0.001 && event.event.FDR !== 0 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
                                     <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
+                                    <li>First Read Count: {event.event.incCount1Avg.toFixed(3)}</li>
                                     <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start} - {positions.end}</li>
                                 </ul>
                             </li>
@@ -270,11 +301,6 @@
                     </ul>
                 </div>
             {/if}
-        </div>
-        <div style="width: 50%">
-            <PieChart
-                data={eventCounts}
-            ></PieChart>
         </div>
     </div>
 {/if}
@@ -309,5 +335,9 @@
     .info-divs {
         display: flex;
         justify-content: space-between;
+    }
+
+    .info-div {
+        flex: 1;
     }
 </style>
