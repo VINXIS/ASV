@@ -132,7 +132,7 @@
                 type="range"
                 id="readcount"
                 min="0"
-                max="1000"
+                max="100"
                 step="1"
                 bind:value={settings.readCountThresh}
                 oninput={updateFilteredStrains}
