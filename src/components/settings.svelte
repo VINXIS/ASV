@@ -68,6 +68,15 @@
         results = [];
     }
 
+    function randomGene() {
+        if (filteredStrains.length === 0) return;
+        const randomIndex = Math.floor(Math.random() * filteredStrains.length);
+        const randomGene = filteredStrains[randomIndex];
+        setSelectedEvent(randomGene);
+        geneSearch = "";
+        results = [];
+    }
+
 </script>
 
 {#if existingStrains}
@@ -97,6 +106,13 @@
                 {/each}
             </div>
         </div>
+        {#if filteredStrains.length > 0}
+            <div class="control-group">
+                <button
+                    onclick={randomGene}
+                >Select random gene</button>
+            </div>
+        {/if}
         <div class="control-group">
             <label for="splicing-type">Alternative Splicing Type:</label>
             <select
