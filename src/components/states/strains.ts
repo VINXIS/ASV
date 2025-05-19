@@ -235,12 +235,15 @@ export function updateSelectFilteredStrains() {
     for (const strain of strains.filter(s => s.visible)) {
         selectFilteredStrains[strain.name] = { colour: strain.colour, events: [] };
         const targetEventTypes = settings.selectedEventType === "All" ? eventTypes : [settings.selectedEventType];
-        for (const eventType of targetEventTypes)
-            selectFilteredStrains[strain.name].events.push(...strain[eventType].filter((event) => {
+        for (const eventType of targetEventTypes) {
+            for (const event of strain[eventType]) {
                 const chromosomeCheck = settings.selectedChr === "All" || (event.chr && event.chr.startsWith(settings.selectedChr));
                 const limitCheck = settings.extraneousPsiLimits === false || event.psi1Avg >= 0.05 && event.psi1Avg <= 0.95;
-                return chromosomeCheck && limitCheck;
-            }));
+                if (chromosomeCheck && limitCheck)
+                    selectFilteredStrains[strain.name].events.push(event);
+                
+            }
+        }
     };
     updateFilteredStrains()
 }
