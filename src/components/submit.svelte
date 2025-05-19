@@ -173,8 +173,11 @@
                 return;
             }
 
-            if (strains.length === 0) // First time loading, parse GTF to get gene info
-                await parseGTF();
+            let gtfParsingPromise: Promise<void> | null = null;
+            if (strains.length === 0) {
+                // Don't await here - let it run in parallel
+                gtfParsingPromise = parseGTF();
+            }
             
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
@@ -243,6 +246,15 @@
             totalStrains.forEach((strain, i) => {
                 strain.colour = colourScale[i % colourScale.length];
             });
+
+            // Now wait for GTF parsing to finish if it was started
+            if (gtfParsingPromise) {
+                try {
+                    await gtfParsingPromise;
+                } catch (error) {
+                    console.error("GTF parsing had an error, but continuing with strain processing:", error);
+                }
+            }
             
             setStrains(totalStrains);
 
@@ -324,6 +336,7 @@
     {#if isLoading}
         <div class="status loading">
             <p>Loading and processing data, please wait...</p>
+            <p>Approx. 20-30 seconds. If it takes longer, close this tab and reopen the site in a new tab</p>
         </div>
     {/if}
     
