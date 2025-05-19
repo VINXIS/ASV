@@ -240,7 +240,7 @@
                 {/if}
                 <ViolinChart
                     keys={["Ψ1", "Ψ2"]}
-                    data={[filteredEvents.map(event => event.event.psi1Avg), filteredEvents.map(event => event.event.psi2Avg)]}
+                    data={[filteredEvents.flatMap(event => event.event.psi1), filteredEvents.flatMap(event => event.event.psi2)]}
                     updateOnFilter="selectedEvent"
                 ></ViolinChart>
                 <PieChart

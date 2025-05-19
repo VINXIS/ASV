@@ -23,8 +23,8 @@
                 RI: events.filter(event => event.eventType === "RI").length,
                 SE: events.filter(event => event.eventType === "SE").length,
             };
-            strainViolinData[`${strainName}_psi1`] = events.map(event => event.psi1Avg);
-            strainViolinData[`${strainName}_psi2`] = events.map(event => event.psi2Avg);
+            strainViolinData[`${strainName}_psi1`] = events.flatMap(event => event.psi1);
+            strainViolinData[`${strainName}_psi2`] = events.flatMap(event => event.psi2);
             strainVolcanoData[strainName] = getStrainEvents(strainName);
         });
     });
