@@ -13,6 +13,9 @@
         q1: number;
         median: number;
         q3: number;
+        average: number;
+        stddev: number;
+        density: { x: number; y: number; }[];
     }> = {};
     const globalStats: {
         min: number;
@@ -21,21 +24,22 @@
     let canvas: HTMLCanvasElement | null = null;
     const padding = 40;
     const yTickCount = 5;
-    const bandwidth = 0.01;
-    const resolution = 50;
+    const resolution = 100; // Number of points for kernel density estimation
+    const bandwidthFactor = 0.5; // Factor to adjust bandwidth for violin plot width
 
     // Calculate kernel density estimation (Gaussian kernel)
-    function kde(key: string, data: number[]): {
+    function kde(data: number[], min: number, max: number, iqr: number, stddev: number): {
         x: number;
         y: number;
     }[] {
         if (data.length === 0) return [];
-        const { min, max } = statStorage[key];
         const range = max - min;
         
         // Create points to evaluate density
         const step = range / resolution;
         const result = [];
+        let bandwidth = 0.9 * Math.min(stddev, iqr/1.35) * Math.pow(data.length, -1/5); // Silverman's rule of thumb
+        bandwidth *= bandwidthFactor; // Adjust bandwidth for violin plot width
         
         for (let i = 0; i <= resolution; i++) {
             const x = min + (i * step);
@@ -80,14 +84,21 @@
         for (let i = 0; i < keys.length; i++) {
             if (data[i].length === 0) continue;
 
-            // Draw box plot elements inside violin
+            // Get statistics for each dataset
             const sortedValues = [...data[i]].sort((a, b) => a - b);
             const q1 = sortedValues[Math.floor(sortedValues.length * 0.25)];
             const median = sortedValues[Math.floor(sortedValues.length * 0.5)];
             const q3 = sortedValues[Math.floor(sortedValues.length * 0.75)];
             const min = sortedValues[0];
             const max = sortedValues[sortedValues.length - 1];
-            statStorage[keys[i]] = { min, max, q1, median, q3 };
+            
+            const average = sortedValues.reduce((sum, value) => sum + value, 0) / sortedValues.length;
+            const stddev = Math.sqrt(sortedValues.reduce((sum, value) => sum + (value - average) ** 2, 0) / sortedValues.length);
+
+            // Calculate KDE for this dataset
+            const density = kde(data[i], min, max, q3 - q1, stddev);
+
+            statStorage[keys[i]] = { min, max, q1, median, q3, density, average, stddev };
 
             if (min < globalStats.min) globalStats.min = min;
             if (max > globalStats.max) globalStats.max = max;
@@ -123,10 +134,8 @@
         keys.forEach((key, index) => {
             if (!data[index] || data[index].length === 0) return;
             
-            // Calculate KDE for this dataset
-            const density = kde(key, data[index]);
-            
             // Find maximum density for scaling
+            const { density } = statStorage[key];
             const maxDensity = Math.max(...density.map(d => d.y));
             
             // Calculate x-position for this violin
@@ -217,13 +226,40 @@
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
 
+        // Get y value from mouse position and the kde values of all graphs at that position
+        const y = event.clientY - rect.top - padding;
+        const yRange = rect.height - 2 * padding;
+        const yValue = globalStats.max - (y / yRange) * (globalStats.max - globalStats.min);
+        let densityInfos = "";
+        if (yValue >= globalStats.min && yValue <= globalStats.max) {
+            densityInfos = `Density at ${tooltipNumber(yValue)}: `;
+            for (const key of keys) {
+                const stats = statStorage[key];
+                // Interpolate density value at yValue as needed
+                let closestMinValue = stats.density[0];
+                for (const point of stats.density) {
+                    if (point.x >= yValue) {
+                        // If neither of them are the same, interpolate
+                        if (point.x === yValue) {
+                            densityInfos += `<strong>${key}</strong>: ${tooltipNumber(point.y)}; `;
+                        } else {
+                            const densityVal = closestMinValue.y * (point.x - yValue) / (point.x - closestMinValue.x) + point.y * (closestMinValue.x - yValue) / (closestMinValue.x - point.x);
+                            densityInfos += `<strong>${key}</strong>: ${isNaN(densityVal) || !isFinite(densityVal) ? "N/A" : tooltipNumber(densityVal)}; `;
+                        }
+                        break;
+                    }
+                    closestMinValue = point;
+                }
+            }
+        }
+
         // Check if mouse is over any violin plot
         const plotWidth = (rect.width - padding) / keys.length;
         for (let i = 0; i < keys.length; i++) {
             const xCenter = padding + (i + 0.5) * plotWidth;
             if (x >= xCenter - plotWidth * 0.5 && x <= xCenter + plotWidth * 0.5) {
                 const stats = statStorage[keys[i]];
-                setTooltipHTML(`<strong>${keys[i]}</strong><br>IQR: ${tooltipNumber(stats.q3 - stats.q1)}<br>Min: ${tooltipNumber(stats.min)}<br>Q1: ${tooltipNumber(stats.q1)}<br>Median: ${tooltipNumber(stats.median)}<br>Q3: ${tooltipNumber(stats.q3)}<br>Max: ${tooltipNumber(stats.max)}`);
+                setTooltipHTML(`<strong>${keys[i]}</strong><br>IQR: ${tooltipNumber(stats.q3 - stats.q1)}<br>Min: ${tooltipNumber(stats.min)}<br>Q1: ${tooltipNumber(stats.q1)}<br>Median: ${tooltipNumber(stats.median)}<br>Q3: ${tooltipNumber(stats.q3)}<br>Max: ${tooltipNumber(stats.max)}<br><br>${densityInfos}`);
                 return;
             }
         }
