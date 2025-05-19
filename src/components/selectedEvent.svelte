@@ -231,7 +231,7 @@
             </div>
             {#if selectedEvent.geneEvents.length > 0}
                 <div class="info-div">
-                    <h4>All events for this Gene (click to view):</h4>
+                    <h4>All events for this Gene ({filteredEvents.length} events)</h4>
                     <button
                         class="toggle-filter"
                         onclick={() => changeFilter(!useFilter)}
