@@ -180,7 +180,7 @@
             const selectedX = xScale(selectedEvent.event.psiDiff);
             const selectedY = yScale(selectedEvent.event.negLogFDR);
             ctx.beginPath();
-            ctx.arc(selectedX, selectedY, 3, 0, Math.PI * 2);
+            ctx.arc(selectedX, selectedY, 2, 0, Math.PI * 2);
             ctx.fillStyle = 'rgb(255, 255, 0)'; // Highlight selected point in yellow
             ctx.fill();
         }
@@ -226,7 +226,7 @@
             const selectedX = xScale(selectedEvent.event.psiDiff);
             const selectedY = yScale(selectedEvent.event.negLogFDR);
             ctx.beginPath();
-            ctx.arc(selectedX, selectedY, 3, 0, Math.PI * 2);
+            ctx.arc(selectedX, selectedY, 2, 0, Math.PI * 2);
             ctx.fillStyle = 'rgb(255, 255, 0)'; // Highlight selected point in yellow
             ctx.fill();
         }
@@ -237,8 +237,10 @@
         if (!canvas || data.length === 0) return;
         
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
         
         const canvasSizeAndScales = getCanvasSizeAndScales();
         if (!canvasSizeAndScales) return;
