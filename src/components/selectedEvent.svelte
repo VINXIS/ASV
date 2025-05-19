@@ -240,8 +240,8 @@
                 {/if}
                 <ViolinChart
                     keys={["Ψ1", "Ψ2"]}
-                    data={[[selectedEvent.event.psi1Avg, ...selectedEvent.geneEvents.map(e => e.event.psi1Avg)], [selectedEvent.event.psi2Avg, ...selectedEvent.geneEvents.map(e => e.event.psi2Avg)]]}
-                    updateOnFilter
+                    data={[filteredEvents.map(event => event.event.psi1Avg), filteredEvents.map(event => event.event.psi2Avg)]}
+                    updateOnFilter="selectedEvent"
                 ></ViolinChart>
                 <PieChart
                     data={eventCounts}
@@ -249,7 +249,7 @@
                 <VolcanoChart
                     data={[selectedEvent.event, ...selectedEvent.geneEvents.map(e => e.event)]}
                     strain={{ name: selectedEvent.event.geneName, colour: selectedEvent.strain.colour }}
-                    updateOnFilter
+                    updateOnFilter="selectedEvent"
                 ></VolcanoChart>
             </div>
             {#if selectedEvent.geneEvents.length > 0}

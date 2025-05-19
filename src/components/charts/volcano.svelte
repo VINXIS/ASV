@@ -8,7 +8,7 @@
 
     // Component state
     let canvas: HTMLCanvasElement | null = null;
-    let { data, updateOnFilter, strain }: { data: Event[]; updateOnFilter: boolean; strain: { name: string; colour: string } } = $props();
+    let { data, updateOnFilter, strain }: { data: Event[]; updateOnFilter?: "strain" | "selectedEvent"; strain: { name: string; colour: string } } = $props();
     let selectedEvent = getSelectedEvent();
     let hoveredPoint: Event | null = null;
     let previousHoveredPoint: Event | null = null;
@@ -315,8 +315,10 @@
             selectedEvent = null; // Reset if the selected event is not from the current strain
         drawHoveredPoints();
     });
-    if (updateOnFilter)
+    if (updateOnFilter === "strain")
         strainEventEmitter.addEventListener("updateFilteredStrains", drawVolcanoPlot);
+    else if (updateOnFilter === "selectedEvent")
+        updatedSelectedEvent.addEventListener("update", drawVolcanoPlot);
 </script>
 
 <div class="volcano-legend">

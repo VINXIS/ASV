@@ -38,7 +38,7 @@
                 <ViolinChart
                     keys={["Ψ1", "Ψ2"]}
                     data={[strainViolinData[`${strain.name}_psi1`], strainViolinData[`${strain.name}_psi2`]]}
-                    updateOnFilter
+                    updateOnFilter="strain"
                 ></ViolinChart>
                 <PieChart
                     data={strainPieData[strain.name]}
@@ -46,7 +46,7 @@
                 <VolcanoChart
                     data={strainVolcanoData[strain.name]}
                     strain={{ name: strain.name, colour: strain.colour }}
-                    updateOnFilter
+                    updateOnFilter="strain"
                 ></VolcanoChart>
             </div>
         {/if}

@@ -4,8 +4,9 @@
     import { clearTooltip, setTooltipHTML } from '../states/tooltip';
     import { strainEventEmitter } from '../states/strains';
     import { rootObserver } from '../rootObserver';
+  import { updatedSelectedEvent } from '../states/selectedEvent';
 
-    const { data, keys, updateOnFilter }: { data: number[][]; keys: string[]; updateOnFilter: boolean } = $props();
+    const { data, keys, updateOnFilter }: { data: number[][]; keys: string[]; updateOnFilter?: "strain" | "selectedEvent" } = $props();
 
     const statStorage: Record<string, {
         min: number;
@@ -176,7 +177,7 @@
             ctx.fillStyle = textColour;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.fillText(key, xCenter, height - padding + 10);
+            ctx.fillText(`${key} (${data[index].length} values)`, xCenter, height - padding + 10);
 
             // Draw box plot overlay
             const yQ1 = height - padding - ((statStorage[key].q1 - globalStats.min) / (globalStats.max - globalStats.min)) * (height - padding - padding);
@@ -189,7 +190,7 @@
             const yMax = height - padding - ((Math.min(statStorage[key].max, statStorage[key].q3 + 1.5 * IQR) - globalStats.min) / (globalStats.max - globalStats.min)) * (height - padding - padding);
             
             // Box
-            const boxWidth = plotWidth * 0.1;
+            const boxWidth = plotWidth * 0.075;
             ctx.fillStyle = boxColour;
             ctx.fillRect(xCenter - boxWidth/2, yQ3, boxWidth, yQ1 - yQ3);
             
@@ -272,8 +273,10 @@
     }
 
     rootObserver(drawViolinPlots);
-    if (updateOnFilter)
+    if (updateOnFilter === "strain")
         strainEventEmitter.addEventListener("updateFilteredStrains", drawViolinPlots);
+    else if (updateOnFilter === "selectedEvent")
+        updatedSelectedEvent.addEventListener("update", drawViolinPlots);
     onMount(() => {
         const resizeObserver = new ResizeObserver(() => {
             if (canvas) {
