@@ -293,7 +293,7 @@
                                     <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
                                     <li>FDR: {Math.abs(event.event.FDR) < 0.001 && event.event.FDR !== 0 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
                                     <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
-                                    <li>First Read Count: {event.event.incCount1Avg.toFixed(3)}</li>
+                                    <li>Read Count 1 Avg.: {event.event.incCount1Avg.toFixed(3)}</li>
                                     <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start} - {positions.end}</li>
                                 </ul>
                             </li>
