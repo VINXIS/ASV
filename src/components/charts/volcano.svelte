@@ -18,14 +18,34 @@
         if (!canvas)
             return null;
         // Plot dimensions
-        const width = canvas.offsetWidth - margin.left - margin.right;
-        const height = canvas.offsetHeight - margin.top - margin.bottom;
+        const width = canvas.width - margin.left - margin.right;
+        const height = canvas.height - margin.top - margin.bottom;
+
+        // Find data ranges
+        const filteredData = data.filter(d => d.FDR !== 0);
+        
+        // Check if there's valid data
+        if (filteredData.length === 0) {
+            // Return default scales if no valid data
+            const xScale = () => margin.left + width/2; // Center point
+            const yScale = () => margin.top + height/2; // Center point
+            return { width, height, xMin: 0, xMax: 0, yMin: 0, yMax: 0, xScale, yScale };
+        }
         
         // Find data ranges
-        const xMin = Math.min(...data.filter(d => d.FDR !== 0).map(d => d.psiDiff));
-        const xMax = Math.max(...data.filter(d => d.FDR !== 0).map(d => d.psiDiff));
+        // Can't use Math.min and Math.max because of maximum call stack size exceeded errors
+        const psiDiffs = filteredData.map(d => d.psiDiff);
+        let xMin = Infinity;
+        let xMax = -Infinity;
+        psiDiffs.forEach(diff => {
+            if (diff < xMin) xMin = diff;
+            if (diff > xMax) xMax = diff;
+        });
         const yMin = 0;
-        const yMax = Math.max(...data.filter(d => d.FDR !== 0).map(d => d.negLogFDR));
+        let yMax = -Infinity;
+        filteredData.forEach(d => {
+            if (d.negLogFDR > yMax) yMax = d.negLogFDR;
+        });
         
         // Scale functions
         const xScale = (x: number) => margin.left + ((x - xMin) / (xMax - xMin)) * width;
