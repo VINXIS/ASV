@@ -180,7 +180,7 @@
                     continue;
                 
                 const fileContent = await readFileAsync(file);
-                const strainName = inferStrainName(file.name);
+                const strainName = inferStrainName(file);
                 
                 const events = processFileContent(file.name, fileContent);
                 if (!events) {
@@ -259,16 +259,21 @@
         return filePattern.test(basename);
     }
     
-    function inferStrainName(filename: string): string {
+    function inferStrainName(file: File): string {
+        const filename = file.name;
         const basename = filename.split('/').pop() || filename;
         
         // Try to extract strain name from common patterns
-        // For example, "strain1_A3SS.MATS.JC.txt" -> "strain1"
-        const match = basename.match(/^([^_]+)_[A-Z0-9]+\.(MATS\.(JC|JCEC)|fromGTF)/i);
+        // For example, "strain1_A3SS.MATS.JCEC.txt" -> "strain1"
+        const match = basename.match(/^([^_]+)_[A-Z0-9]+\.(MATS\.JCEC)/i);
         if (match) return match[1];
         
         // If no specific pattern, extract from folder name or use the full filename
-        const folderName = folderInput.files?.[0]?.webkitRelativePath.split('/')[0];
+        const filePath = file.webkitRelativePath.split('/');
+        if (!filePath || filePath.length === 0)
+            return "Unknown_Strain";
+
+        const folderName = filePath[filePath.length - 2]; // Assuming the folder is the second last part of the path
         if (folderName)
             return folderName;
         
