@@ -4,6 +4,7 @@
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { readFileAsync } from "../../utils/files";
     import { colourScale } from "../../utils/colour";
+    import { parseGTF } from "./states/gtf";
 
     let folderInput: HTMLInputElement;
     let isLoading = false;
@@ -171,6 +172,9 @@
                 isLoading = false;
                 return;
             }
+
+            if (strains.length === 0) // First time loading, parse GTF to get gene info
+                await parseGTF();
             
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
