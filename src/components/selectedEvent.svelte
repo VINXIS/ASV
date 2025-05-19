@@ -274,7 +274,6 @@
         <div style="width: 50%">
             <PieChart
                 data={eventCounts}
-                updateOnFilter={false}
             ></PieChart>
         </div>
     </div>

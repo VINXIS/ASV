@@ -42,7 +42,6 @@
                 ></ViolinChart>
                 <PieChart
                     data={strainPieData[strain.name]}
-                    updateOnFilter
                 ></PieChart>
                 <VolcanoChart
                     data={strainVolcanoData[strain.name]}

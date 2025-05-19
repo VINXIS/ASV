@@ -1,13 +1,12 @@
 <script lang="ts">
     import { colourScale, highlightColour } from "../../../utils/colour";
-    import { updatedSelectedEvent } from "../states/selectedEvent";
     import { clearTooltip, setTooltipHTML } from "../states/tooltip";
-    import { eventColours, strainEventEmitter, type EventType } from "../states/strains";
+    import { eventColours, type EventType } from "../states/strains";
     import { onMount } from "svelte";
 
     let canvas: HTMLCanvasElement | null = null;
 
-    let { data, updateOnFilter }: { data: Record<string, number>; updateOnFilter: boolean } = $props();
+    let { data }: { data: Record<string, number> } = $props();
     let segments: { key: string; value: number; colour: string; startAngle: number; endAngle: number }[] = [];
     let total = Object.values(data).reduce((acc, val) => acc + val, 0);
     const margin = 5; // Margin between canvas edge and pie chart, 0 because I want it to fill the entire canvas for now
@@ -92,6 +91,7 @@
 
         let startAngle = 0;
         segments = [];
+        total = Object.values(data).reduce((acc, val) => acc + val, 0);
 
         let i = 0;
         for (const [key, value] of Object.entries(data)) {
@@ -118,6 +118,7 @@
                 segment.key,
                 segment.value
             );
+        requestAnimationFrame(draw);
     }
 
     function handleMouseMove(event: MouseEvent) {
@@ -136,7 +137,6 @@
         const radius = Math.min(width, height) / 2 - margin;
         const distanceFromCenter = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
         if (distanceFromCenter > radius) {
-            draw();
             clearTooltip();
             canvas.style.cursor = "default";
             return;
@@ -180,15 +180,8 @@
 
     function handleMouseLeave() {
         if (!canvas) return;
-        draw();
         clearTooltip();
         canvas.style.cursor = "default";
-    }
-
-    function updateValues () {
-        segments = [];
-        total = Object.values(data).reduce((acc, val) => acc + val, 0);
-        draw();
     }
     
     onMount(() => {
@@ -202,9 +195,6 @@
         if (canvas)
             resizeObserver.observe(canvas.parentElement!);
     });
-    updatedSelectedEvent.addEventListener("update", updateValues);
-    if (updateOnFilter)
-        strainEventEmitter.addEventListener("updateFilteredStrains", updateValues);
 </script>
 
 <canvas
