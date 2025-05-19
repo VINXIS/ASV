@@ -7,9 +7,11 @@
     import VolcanoChart from "./charts/volcano.svelte";
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
+    import { getFeaturesByGene, type Feature } from "./states/gtf";
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
+    let selectedTranscript: string | null = null;
     let useFilter = true;
     let readCountThresh = true;
     let filteredEvents: {
@@ -66,25 +68,68 @@
         let root = document.querySelector(":root")!;
         const textColour = root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e";
 
-        const [x, y, width, height] = [50, 100, canvas.width - 100, 100];
+        const [x, y, width, height] = [50, 100, canvas.width - 100, 150];
 
         const exons = getSplicingExons(selectedEvent.event);
         if (!exons.length) return;
+
+        // Currently "gene_number" is corresponding to each transcript, it should instead correspond to their location instead
+        const geneFeatures = getFeaturesByGene(selectedEvent.event.geneName || selectedEvent.event.geneID).filter(g => g.feature === "exon");
+        // Get unique genes from start/end positions
+        let uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => t.start === g.start || t.end === g.end));
+        uniqueGenes.sort((a, b) => a.start - b.start);
+        uniqueGenes = uniqueGenes.map((g, index) => ({
+            ...g,
+            attributes: {
+                ...g.attributes,
+                exon_number: g.strand === '+' ? index + 1 : uniqueGenes.length - index // Assign exon number based on strand direction
+            }
+        }));
+        const transcriptGroups = uniqueGenes.reduce((acc, feature) => {
+            const transcriptId = feature.attributes["transcript_id"];
+            if (!acc[transcriptId])
+                acc[transcriptId] = [];
+            acc[transcriptId].push(feature);
+            return acc;
+        }, {} as Record<string, Feature[]>);
+
+        // See which transcript the selected event belongs to
+        for (const transcriptId in transcriptGroups) {
+            if (exons.filter(exon => exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 2 || Math.abs(g.end - exon.end) < 2))) {
+                selectedTranscript = transcriptId;
+                break;
+            }
+        }
         
         // Get position range for scaling
         const positions = getPositionsFromData(selectedEvent.event);
-        const minPos = positions.start;
-        const maxPos = positions.end;
+        const minPos = Math.min(positions.start, ...geneFeatures.map(g => g.start));
+        const maxPos = Math.max(positions.end, ...geneFeatures.map(g => g.end));
         const posRange = maxPos - minPos;
         
         // Define visual properties
-        const exonHeight = height * 0.4;
-        const junctionHeight = height * 0.2;
-        const yInclusionPath = y + height * 0.2;
-        const yExclusionPath = y + height * 0.8;
+        const exonHeight = height * 0.3;
+        const junctionHeight = height * 0.15;
+        const yGTFPath = y + height * 0.1;
+        const yInclusionPath = y + height * 0.5;
+        const yExclusionPath = y + height * 0.9;
         
         // Function to scale genomic position to canvas x coordinate
         const scaleX = (pos: number) => ((pos - minPos) / posRange) * width + x;
+
+        // Draw Exons for GTF Path
+        uniqueGenes.forEach(feature => {
+            const exonX = scaleX(feature.start);
+            const exonWidth = scaleX(feature.end) - exonX;
+
+            ctx.fillStyle = '#34A853';  // Green for GTF path
+            ctx.fillRect(exonX, yGTFPath - exonHeight/2, exonWidth, exonHeight);
+            // Write the exon number on top
+            ctx.fillStyle = textColour;
+            ctx.font = '10px Inconsolata';
+            ctx.textAlign = 'center';
+            ctx.fillText(`E${feature.attributes["exon_number"]}`, exonX + exonWidth / 2, yGTFPath - exonHeight/2 - 5);
+        });
         
         // Draw inclusion path exons (solid)
         ctx.fillStyle = '#4285F4';  // Blue for inclusion path
@@ -145,7 +190,7 @@
         ctx.textAlign = 'center';
         
         // Draw splicing type label
-        ctx.fillText(selectedEvent.event.eventType, x + width/2, y - 5);
+        ctx.fillText(selectedEvent.event.eventType, x + width/2, y - 50);
         
         // Draw strand indicator
         const strandSymbol = selectedEvent.event.strand === '+' ? '→' : '←';
@@ -156,6 +201,8 @@
         ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
         ctx.fillStyle = '#DB4437';
         ctx.fillText(`1 - Ψ1: ${(1-selectedEvent.event.psi1Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
+        ctx.fillStyle = '#34A853';
+        ctx.fillText("GTF", scaleX(maxPos) + ctx.measureText("GTF").width, (yGTFPath - exonHeight/2));
     }
 
     function changeFilter(value: boolean) {
@@ -190,6 +237,16 @@
         ></canvas>
         <div class="info-divs">
             <div class="info-div">
+                <p>
+                    <strong>Possible transcript (Based on ~2 bp away for all exons):</strong>
+                    {#if selectedTranscript}
+                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{selectedTranscript}" target="_blank" rel="noopener noreferrer">
+                            {selectedTranscript}
+                        </a>
+                    {:else}
+                        N/A
+                    {/if}
+                </p>
                 <p><strong>Chromosome:</strong> {selectedEvent.event.chr} ({selectedEvent.event.strand} strand)</p>
                 <p><strong>FDR:</strong> {Math.abs(selectedEvent.event.FDR) < 0.001 ? selectedEvent.event.FDR.toExponential(3) : selectedEvent.event.FDR.toFixed(3)}</p>
                 <p><strong>Inclusion Level Difference (ΔΨ):</strong> {Math.abs(selectedEvent.event.psiDiff) < 0.001 ? selectedEvent.event.psiDiff.toExponential(3) : selectedEvent.event.psiDiff.toFixed(3)}</p>
