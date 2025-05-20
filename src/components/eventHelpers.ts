@@ -65,50 +65,32 @@ export function getSplicingExons(data: Event): {
                     { start: seData.exonStart, end: seData.exonEnd, type: "target", inclusion: true },
                     { start: seData.downstreamExonStart, end: seData.downstreamExonEnd, type: "downstream", inclusion: true }
                 ];
-                exons.push({
-                    start: seData.upstreamExonEnd,
-                    end: seData.downstreamExonStart,
-                    type: "junction",
-                    inclusion: false
-                    
-                });
-                exons.push({
-                    start: seData.downstreamExonEnd,
-                    end: seData.exonStart,
-                    type: "junction",
-                    inclusion: true
-                });
-                exons.push({
-                    start: seData.exonEnd,
-                    end: seData.upstreamExonStart,
-                    type: "junction",
-                    inclusion: true
-                });
             } else {
                 exons = [
                     { start: seData.downstreamExonStart, end: seData.downstreamExonEnd, type: "downstream", inclusion: true },
                     { start: seData.exonStart, end: seData.exonEnd, type: "target", inclusion: true },
                     { start: seData.upstreamExonStart, end: seData.upstreamExonEnd, type: "upstream", inclusion: true }
                 ];
-                exons.push({
-                    start: seData.downstreamExonEnd,
-                    end: seData.upstreamExonStart,
-                    type: "junction", 
-                    inclusion: false
-                });
-                exons.push({
-                    start: seData.upstreamExonEnd,
-                    end: seData.exonStart,
-                    type: "junction",
-                    inclusion: true
-                });
-                exons.push({
-                    start: seData.exonEnd,
-                    end: seData.downstreamExonStart,
-                    type: "junction",
-                    inclusion: true
-                });
             }
+            exons.push({
+                start: seData.upstreamExonEnd,
+                end: seData.downstreamExonStart,
+                type: "junction",
+                inclusion: false
+                
+            });
+            exons.push({
+                start: seData.exonEnd,
+                end: seData.downstreamExonStart,
+                type: "junction",
+                inclusion: true
+            });
+            exons.push({
+                start: seData.upstreamExonEnd,
+                end: seData.exonStart,
+                type: "junction",
+                inclusion: true
+            });
             break;
             
         case "MXE":
@@ -122,30 +104,6 @@ export function getSplicingExons(data: Event): {
                     { start: mxeData.exon2Start, end: mxeData.exon2End, type: "second", inclusion: false },
                     { start: mxeData.downstreamExonStart, end: mxeData.downstreamExonEnd, type: "downstream", inclusion: true }
                 ];
-                exons.push({
-                    start: mxeData.upstreamExonEnd,
-                    end: mxeData.exon1Start,
-                    type: "junction",
-                    inclusion: true
-                });
-                exons.push({
-                    start: mxeData.exon1End,
-                    end: mxeData.downstreamExonStart,
-                    type: "junction",
-                    inclusion: true
-                });
-                exons.push({
-                    start: mxeData.upstreamExonEnd, 
-                    end: mxeData.exon2Start,
-                    type: "junction",
-                    inclusion: false
-                });
-                exons.push({
-                    start: mxeData.exon2End,
-                    end: mxeData.downstreamExonStart,
-                    type: "junction",
-                    inclusion: false
-                });
             } else {
                 // On - strand, second exon is the inclusion form
                 // First exon is the exclusion form
@@ -155,31 +113,31 @@ export function getSplicingExons(data: Event): {
                     { start: mxeData.exon1Start, end: mxeData.exon1End, type: "first", inclusion: false },
                     { start: mxeData.upstreamExonStart, end: mxeData.upstreamExonEnd, type: "upstream", inclusion: true }
                 ];
-                exons.push({
-                    start: mxeData.downstreamExonEnd,
-                    end: mxeData.exon2Start,
-                    type: "junction",
-                    inclusion: true
-                });
-                exons.push({
-                    start: mxeData.exon2End,
-                    end: mxeData.upstreamExonStart,
-                    type: "junction",
-                    inclusion: true
-                });
-                exons.push({
-                    start: mxeData.downstreamExonEnd,
-                    end: mxeData.exon1Start,
-                    type: "junction",
-                    inclusion: false
-                });
-                exons.push({
-                    start: mxeData.exon1End,
-                    end: mxeData.upstreamExonStart,
-                    type: "junction",
-                    inclusion: false
-                });
             }
+            exons.push({
+                start: mxeData.exon2End,
+                end: mxeData.downstreamExonStart,
+                type: "junction",
+                inclusion: strand === "+" ? false : true
+            });
+            exons.push({
+                start: mxeData.upstreamExonEnd,
+                end: mxeData.exon2Start,
+                type: "junction",
+                inclusion: strand === "+" ? false : true
+            });
+            exons.push({
+                start: mxeData.exon1End,
+                end: mxeData.downstreamExonStart,
+                type: "junction",
+                inclusion: strand === "+" ? true : false
+            });
+            exons.push({
+                start: mxeData.upstreamExonEnd,
+                end: mxeData.exon1Start,
+                type: "junction",
+                inclusion: strand === "+" ? true : false
+            });
             break;
             
         case "A3SS":
@@ -232,14 +190,14 @@ export function getSplicingExons(data: Event): {
                     { start: ass5Data.longExonStart, end: ass5Data.longExonEnd, type: "long", inclusion: true }
                 ];
                 exons.push({
-                    start: ass5Data.flankingExonEnd,
-                    end: ass5Data.shortExonStart,
+                    start: ass5Data.shortExonEnd,
+                    end: ass5Data.flankingExonStart,
                     type: "junction",
                     inclusion: false
                 });
                 exons.push({
-                    start: ass5Data.flankingExonEnd,
-                    end: ass5Data.longExonStart,
+                    start: ass5Data.longExonEnd,
+                    end: ass5Data.flankingExonStart,
                     type: "junction",
                     inclusion: true
                 });
@@ -250,14 +208,14 @@ export function getSplicingExons(data: Event): {
                     { start: ass5Data.flankingExonStart, end: ass5Data.flankingExonEnd, type: "flanking", inclusion: true }
                 ];
                 exons.push({
-                    start: ass5Data.shortExonEnd,
-                    end: ass5Data.flankingExonStart,
+                    start: ass5Data.flankingExonEnd,
+                    end: ass5Data.shortExonStart,
                     type: "junction",
                     inclusion: false
                 });
                 exons.push({
-                    start: ass5Data.longExonEnd,
-                    end: ass5Data.flankingExonStart,
+                    start: ass5Data.flankingExonEnd,
+                    end: ass5Data.longExonStart,
                     type: "junction",
                     inclusion: true
                 });
@@ -272,25 +230,19 @@ export function getSplicingExons(data: Event): {
                     { start: riData.upstreamExonEnd, end: riData.downstreamExonStart, type: "intron", inclusion: true },
                     { start: riData.downstreamExonStart, end: riData.downstreamExonEnd, type: "downstream", inclusion: true }
                 ];
-                exons.push({
-                    start: riData.upstreamExonEnd,
-                    end: riData.downstreamExonStart,
-                    type: "junction",
-                    inclusion: false
-                });
             } else {
                 exons = [
                     { start: riData.downstreamExonStart, end: riData.downstreamExonEnd, type: "downstream", inclusion: true },
                     { start: riData.upstreamExonEnd, end: riData.downstreamExonStart, type: "intron", inclusion: true },
                     { start: riData.upstreamExonStart, end: riData.upstreamExonEnd, type: "upstream", inclusion: true }
                 ];
-                exons.push({
-                    start: riData.downstreamExonEnd,
-                    end: riData.upstreamExonStart,
-                    type: "junction",
-                    inclusion: false
-                });
             }
+            exons.push({
+                start: riData.upstreamExonEnd,
+                end: riData.downstreamExonStart,
+                type: "junction",
+                inclusion: false
+            });
             break;
     }
     

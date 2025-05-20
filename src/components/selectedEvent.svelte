@@ -15,6 +15,8 @@
     let redTranscript: string | null = null;
     let useFilter = true;
     let readCountThresh = true;
+    let showEntireContext = false;
+    let mouseData: { x: number; y: number } | null = null;
     let filteredEvents: {
         strain: {
             name: string;
@@ -53,6 +55,28 @@
         draw();
     }
 
+    function drawHoverInfo(startX: number, endX: number, yStart: number, yEnd: number, colour: string, value: string) {
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(startX, yStart);
+        ctx.lineTo(startX, yEnd);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(endX, yStart);
+        ctx.lineTo(endX, yEnd);
+        ctx.stroke();
+
+        ctx.font = '10px Inconsolata';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = colour;
+        ctx.fillText(value, startX + (endX - startX) / 2, yStart - 20);
+    }
+
     function draw() {
         const selectedEvent = getSelectedEvent();
         if (!canvas || !selectedEvent) {
@@ -64,12 +88,13 @@
 
         // Reset canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.setLineDash([5, 3]);
 
         // Check if root has light or dark mode
         let root = document.querySelector(":root")!;
         const textColour = root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e";
 
-        const [x, y, width, height] = [50, 100, canvas.width - 100, 150];
+        const [x, y, width, height] = [25, 100, canvas.width - 100, 150];
 
         const exons = getSplicingExons(selectedEvent.event);
         if (!exons.length) return;
@@ -95,6 +120,8 @@
         }, {} as Record<string, Feature[]>);
 
         // See which transcript the selected event belongs to
+        blueTranscript = null;
+        redTranscript = null;
         for (const transcriptId in transcriptGroups) {
             if (exons.filter(exon => exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 2 || Math.abs(g.end - exon.end) < 2))) {
                 blueTranscript = transcriptId;
@@ -108,35 +135,20 @@
         
         // Get position range for scaling
         const positions = getPositionsFromData(selectedEvent.event);
-        const minPos = Math.min(positions.start);
-        const maxPos = Math.max(positions.end);
+        const genomeStart = Math.min(...uniqueGenes.map(g => g.start));
+        const genomeEnd = Math.max(...uniqueGenes.map(g => g.end));
+        const minPos = showEntireContext ? 0 : positions.start - genomeStart;
+        const maxPos = showEntireContext ? (genomeEnd - genomeStart) : (positions.end - genomeStart);
         const posRange = maxPos - minPos;
         
         // Define visual properties
         const exonHeight = height * 0.3;
-        const junctionHeight = height * 0.15;
         const yGTFPath = y + height * 0.1;
         const yInclusionPath = y + height * 0.5;
         const yExclusionPath = y + height * 0.9;
         
         // Function to scale genomic position to canvas x coordinate
-        const scaleX = (pos: number) => ((pos - minPos) / posRange) * width + x;
-
-        // Draw Exons for GTF Path
-        uniqueGenes.forEach(feature => {
-            if (feature.start < minPos || feature.end > maxPos) return; // Skip if outside range
-
-            const exonX = scaleX(feature.start);
-            const exonWidth = scaleX(feature.end) - exonX;
-
-            ctx.fillStyle = '#34A853';  // Green for GTF path
-            ctx.fillRect(exonX, yGTFPath - exonHeight/2, exonWidth, exonHeight);
-            // Write the exon number on top
-            ctx.fillStyle = textColour;
-            ctx.font = '10px Inconsolata';
-            ctx.textAlign = 'center';
-            ctx.fillText(`E${feature.attributes["exon_number"]}`, exonX + exonWidth / 2, yGTFPath - exonHeight/2 - 5);
-        });
+        const scaleX = (pos: number) => ((pos - genomeStart - minPos) / posRange) * width + x;
         
         // Draw inclusion path exons (solid)
         ctx.fillStyle = '#4285F4';  // Blue for inclusion path
@@ -144,6 +156,15 @@
             const exonX = scaleX(exon.start);
             const exonWidth = scaleX(exon.end) - exonX;
             ctx!.fillRect(exonX, yInclusionPath - exonHeight/2, exonWidth, exonHeight);
+
+            if (mouseData &&
+                mouseData.x >= exonX &&
+                mouseData.x <= exonX + exonWidth &&
+                mouseData.y >= yInclusionPath - exonHeight/2 &&
+                mouseData.y <= yInclusionPath + exonHeight/2
+            ) {
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#4285F4", `${exon.end - exon.start} bp`);
+            }
         });
         
         // Draw exclusion path exons (solid)
@@ -152,46 +173,71 @@
             const exonX = scaleX(exon.start);
             const exonWidth = scaleX(exon.end) - exonX;
             ctx!.fillRect(exonX, yExclusionPath - exonHeight/2, exonWidth, exonHeight);
+
+            if (mouseData &&
+                mouseData.x >= exonX &&
+                mouseData.x <= exonX + exonWidth &&
+                mouseData.y >= yExclusionPath - exonHeight/2 &&
+                mouseData.y <= yExclusionPath + exonHeight/2
+            ) {
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#DB4437", `${exon.end - exon.start} bp`);
+            }
         });
         
-        // Draw inclusion junctions (dashed)
-        ctx.strokeStyle = '#4285F4';
-        ctx.setLineDash([5, 3]);
+        // Draw junctions (dashed)
         ctx.lineWidth = 2;
-        exons.filter(e => e.inclusion && e.type === "junction").forEach(junction => {
+        exons.filter(e => e.type === "junction").forEach(junction => {
             const startX = scaleX(junction.start);
             const endX = scaleX(junction.end);
-            
+            const path = junction.inclusion ? yInclusionPath : yExclusionPath;
+            const colour = junction.inclusion ? '#4285F4' : '#DB4437';
+
+            ctx.strokeStyle = colour;
             ctx!.beginPath();
-            ctx!.moveTo(startX, yInclusionPath);
-            
-            // Draw curved junction line
-            const controlX = (startX + endX) / 2;
-            const controlY = yInclusionPath - junctionHeight;
-            ctx!.quadraticCurveTo(controlX, controlY, endX, yInclusionPath);
+            ctx!.moveTo(startX, path);
+            ctx!.lineTo(endX, path);
             ctx!.stroke();
+
+            if (
+                mouseData &&
+                mouseData.x >= startX &&
+                mouseData.x <= endX &&
+                mouseData.y >= path - exonHeight/2 &&
+                mouseData.y <= path + exonHeight/2
+            ) {
+                drawHoverInfo(startX, endX, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, colour, `${junction.end - junction.start} bp`);
+                ctx.lineWidth = 2;
+            }
+        });
+
+        // Draw Exons for GTF Path
+        uniqueGenes.forEach(feature => {
+            if ((feature.start - genomeStart) < minPos || (feature.end - genomeStart) > maxPos) return; // Skip if outside range
+
+            const exonX = scaleX(feature.start);
+            const exonWidth = scaleX(feature.end) - exonX;
+
+            ctx.fillStyle = '#34A853';  // Green for GTF path
+            ctx.fillRect(exonX, yGTFPath - exonHeight/2, exonWidth, exonHeight);
+
+            // Write the exon number on top
+            ctx.fillStyle = textColour;
+            ctx.font = '10px Inconsolata';
+            ctx.textAlign = 'center';
+            ctx.fillText(`E${feature.attributes["exon_number"]}`, exonX + exonWidth / 2, yGTFPath - exonHeight/2 - 5);
+
+            if (
+                mouseData &&
+                mouseData.x >= exonX &&
+                mouseData.x <= exonX + exonWidth &&
+                mouseData.y >= yGTFPath - exonHeight/2 &&
+                mouseData.y <= yGTFPath + exonHeight/2
+            ) {
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#34A853", `${feature.end - feature.start} bp`);
+            }
         });
         
-        // Draw exclusion junctions (dashed)
-        ctx.strokeStyle = '#DB4437';
-        exons.filter(e => !e.inclusion && e.type === "junction").forEach(junction => {
-            const startX = scaleX(junction.start);
-            const endX = scaleX(junction.end);
-            
-            ctx!.beginPath();
-            ctx!.moveTo(startX, yExclusionPath);
-            
-            // Draw curved junction line
-            const controlX = (startX + endX) / 2;
-            const controlY = yExclusionPath - junctionHeight;
-            ctx!.quadraticCurveTo(controlX, controlY, endX, yExclusionPath);
-            ctx!.stroke();
-        });
-        
-        // Reset dash pattern
-        ctx.setLineDash([]);
-        
-        // Add labels if desired
+        // Add labels
         ctx.fillStyle = textColour;
         ctx.font = '10px Inconsolata';
         ctx.textAlign = 'center';
@@ -201,15 +247,63 @@
         
         // Draw strand indicator
         const strandSymbol = selectedEvent.event.strand === '+' ? '→' : '←';
-        ctx.fillText(`${strandSymbol} ${selectedEvent.event.strand} strand`, x + width/2, y + height + 15);
+        ctx.fillText(`${strandSymbol} ${selectedEvent.event.strand} strand`, x + width/2, y + height + 20);
         
         // Optional: Add appropriate labels depending on splicing type
         ctx.fillStyle = '#4285F4';
-        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}; Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}`, width + x + 30, yInclusionPath - 5);
+        ctx.fillText(`Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, width + x + 30, yInclusionPath + 5);
         ctx.fillStyle = '#DB4437';
-        ctx.fillText(`1 - Ψ1: ${(1-selectedEvent.event.psi1Avg).toFixed(3)}; 1 - Ψ2: ${(1-selectedEvent.event.psi2Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`1-Ψ1: ${(1 - selectedEvent.event.psi1Avg).toFixed(3)}`, width + x + 30, yExclusionPath - 5);
+        ctx.fillText(`1-Ψ2: ${(1 - selectedEvent.event.psi2Avg).toFixed(3)}`, width + x + 30, yExclusionPath + 5);
         ctx.fillStyle = '#34A853';
         ctx.fillText("GTF", scaleX(maxPos) + ctx.measureText("GTF").width, yGTFPath);
+
+        // X axis
+        ctx.strokeStyle = textColour;
+        ctx.setLineDash([]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + width, 0);
+        ctx.stroke();
+        
+        ctx.fillStyle = textColour;
+        ctx.font = "10px Inconsolata";
+        ctx.textAlign = "center";
+
+        const tickCount = 4;
+        const tickInterval = posRange / tickCount;
+        
+        for (let i = 0; i <= tickCount; i++) {
+            const position = minPos + i * tickInterval;
+            const xPos = (i / tickCount) * width + x;            
+            ctx.beginPath();
+            ctx.moveTo(xPos, 0);
+            ctx.lineTo(xPos, 5);
+            ctx.stroke();
+            
+            const label = Math.round(position);
+            ctx.fillText(label.toString(), xPos, 15);
+        }
+        
+        ctx.textAlign = "left";
+        ctx.font = "10px Inconsolata";
+        ctx.fillText("Position (bp)", 5, 25);
+    }
+
+    function handleMouseMove(event: MouseEvent) {
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        mouseData = { x, y };
+        draw();
+    }
+
+    function handleMouseLeave() {
+        mouseData = null;
+        draw();
     }
 
     function changeFilter(value: boolean) {
@@ -219,6 +313,11 @@
 
     function changeReadCountThresh(value: boolean) {
         readCountThresh = value;
+        updateValues();
+    }
+
+    function toggleContext(value: boolean) {
+        showEntireContext = value;
         updateValues();
     }
 
@@ -240,11 +339,18 @@
             width="700"
             height="300"
             bind:this={canvas}
+            onmouseleave={handleMouseLeave}
+            onmousemove={handleMouseMove}
             style="display: block; margin: 0 auto;"
         ></canvas>
         <div class="info-divs">
             <div class="info-div">
                 (~2bp leniency checks)
+                <button
+                    onclick={() => toggleContext(!showEntireContext)}
+                >
+                    {showEntireContext ? "Show Event Context" : "Show Gene Context"}
+                </button>
                 <p style="color: #4285F4">
                     <strong>Ver 1 Transcript:</strong>
                     {#if blueTranscript}
