@@ -436,7 +436,8 @@
             </div>
             {#if selectedEvent.geneEvents.length > 0}
                 <div class="info-div">
-                    <h4>All events for this Gene ({filteredEvents.length} events)</h4>
+                    <h4>All events for this Gene ({filteredEvents.length} events)<br>
+                        Select below to view the details of each event.</h4>
                     <button
                         class="toggle-filter"
                         style="margin-bottom: 10px;"
@@ -465,17 +466,22 @@
                                     draw();
                                 }}
                             >
-                                {#if selectedEvent.strain.name === event.strain.name && selectedPositions.start === positions.start && selectedPositions.end === positions.end && selectedEvent.event.eventType === event.event.eventType && selectedEvent.event.strand === event.event.strand && selectedEvent.event.psiDiff === event.event.psiDiff && selectedEvent.event.FDR === event.event.FDR}
-                                    <strong>{event.strain.name} (Selected)</strong>
-                                {:else}
-                                    {event.strain.name}
-                                {/if}
+                                <span style="text-decoration: underline;">
+                                    {#if selectedEvent.strain.name === event.strain.name && selectedPositions.start === positions.start && selectedPositions.end === positions.end && selectedEvent.event.eventType === event.event.eventType && selectedEvent.event.strand === event.event.strand && selectedEvent.event.psiDiff === event.event.psiDiff && selectedEvent.event.FDR === event.event.FDR}
+                                        <strong>{event.strain.name} (Selected)</strong>
+                                    {:else}
+                                        {event.strain.name}
+                                    {/if}
+                                </span>
                                 <ul>
                                     
                                     <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
                                     <li>FDR: {Math.abs(event.event.FDR) < 0.001 && event.event.FDR !== 0 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
                                     <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
-                                    <li>Read Count 1 Avg.: {event.event.incCount1Avg.toFixed(3)}</li>
+                                    <li>Inclusion Read Count 1 Avg.: {event.event.incCount1Avg.toFixed(3)}</li>
+                                    <li>Inclusion Read Count 2 Avg.: {event.event.incCount2Avg.toFixed(3)}</li>
+                                    <li>Skipped Read Count 1 Avg.: {event.event.skipCount1Avg.toFixed(3)}</li>
+                                    <li>Skipped Read Count 2 Avg.: {event.event.skipCount2Avg.toFixed(3)}</li>
                                     <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start} - {positions.end}</li>
                                 </ul>
                             </li>
