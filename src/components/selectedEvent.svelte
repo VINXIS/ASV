@@ -11,7 +11,8 @@
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
-    let selectedTranscript: string | null = null;
+    let blueTranscript: string | null = null;
+    let redTranscript: string | null = null;
     let useFilter = true;
     let readCountThresh = true;
     let filteredEvents: {
@@ -95,16 +96,20 @@
 
         // See which transcript the selected event belongs to
         for (const transcriptId in transcriptGroups) {
-            if (exons.filter(exon => exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 2 || Math.abs(g.end - exon.end) < 2))) {
-                selectedTranscript = transcriptId;
+            if (exons.filter(exon => exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 2 || Math.abs(g.end - exon.end) < 2))) {
+                blueTranscript = transcriptId;
                 break;
             }
+            if (exons.filter(exon => !exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 2 || Math.abs(g.end - exon.end) < 2))) {
+                redTranscript = transcriptId;
+                break;
+            } 
         }
         
         // Get position range for scaling
         const positions = getPositionsFromData(selectedEvent.event);
-        const minPos = Math.min(positions.start, ...geneFeatures.map(g => g.start));
-        const maxPos = Math.max(positions.end, ...geneFeatures.map(g => g.end));
+        const minPos = Math.min(positions.start);
+        const maxPos = Math.max(positions.end);
         const posRange = maxPos - minPos;
         
         // Define visual properties
@@ -119,6 +124,8 @@
 
         // Draw Exons for GTF Path
         uniqueGenes.forEach(feature => {
+            if (feature.start < minPos || feature.end > maxPos) return; // Skip if outside range
+
             const exonX = scaleX(feature.start);
             const exonWidth = scaleX(feature.end) - exonX;
 
@@ -198,11 +205,11 @@
         
         // Optional: Add appropriate labels depending on splicing type
         ctx.fillStyle = '#4285F4';
-        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)} Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
         ctx.fillStyle = '#DB4437';
-        ctx.fillText(`1 - Ψ1: ${(1-selectedEvent.event.psi1Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`1 - Ψ1: ${(1-selectedEvent.event.psi1Avg).toFixed(3)} 1 - Ψ2: ${(1-selectedEvent.event.psi2Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
         ctx.fillStyle = '#34A853';
-        ctx.fillText("GTF", scaleX(maxPos) + ctx.measureText("GTF").width, (yGTFPath - exonHeight/2));
+        ctx.fillText("GTF", scaleX(maxPos) + ctx.measureText("GTF").width, yGTFPath);
     }
 
     function changeFilter(value: boolean) {
@@ -237,16 +244,26 @@
         ></canvas>
         <div class="info-divs">
             <div class="info-div">
-                <p>
-                    <strong>Possible transcript (Based on ~2 bp leniency for exons):</strong>
-                    {#if selectedTranscript}
-                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{selectedTranscript}" target="_blank" rel="noopener noreferrer">
-                            {selectedTranscript}
+                (~2bp leniency checks)
+                <p style="color: #4285F4">
+                    <strong>Ver 1 Transcript:</strong>
+                    {#if blueTranscript}
+                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{blueTranscript}" target="_blank" rel="noopener noreferrer">
+                            {blueTranscript}
                         </a>
                     {:else}
                         N/A
                     {/if}
                 </p>
+                <p style="color: #DB4437">
+                    <strong>Ver 2 Transcript:</strong>
+                    {#if redTranscript}
+                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{redTranscript}" target="_blank" rel="noopener noreferrer">
+                            {redTranscript}
+                        </a>
+                    {:else}
+                        N/A
+                    {/if}
                 <p><strong>Chromosome:</strong> {selectedEvent.event.chr} ({selectedEvent.event.strand} strand)</p>
                 <p><strong>FDR:</strong> {Math.abs(selectedEvent.event.FDR) < 0.001 ? selectedEvent.event.FDR.toExponential(3) : selectedEvent.event.FDR.toFixed(3)}</p>
                 <p><strong>Inclusion Level Difference (ΔΨ):</strong> {Math.abs(selectedEvent.event.psiDiff) < 0.001 ? selectedEvent.event.psiDiff.toExponential(3) : selectedEvent.event.psiDiff.toFixed(3)}</p>
