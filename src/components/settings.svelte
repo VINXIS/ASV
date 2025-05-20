@@ -153,7 +153,7 @@
                 bind:value={settings.readCountThresh}
                 oninput={updateFilteredStrains}
             />
-            <span>{settings.readCountThresh}</span>
+            <span>Count1&ge;{settings.readCountThresh}</span>
         </div>
 
         <div class="control-group">
@@ -181,7 +181,7 @@
                 bind:value={settings.psiDiffThresh}
                 oninput={updateFilteredStrains}
             />
-            <span>|ΔΨ|&ge;{settings.psiDiffThresh}&verbar;</span>
+            <span>|ΔΨ|&ge;{settings.psiDiffThresh}</span>
         </div>
 
         <div class="control-group">

@@ -352,7 +352,7 @@
                     {showEntireContext ? "Show Event Context" : "Show Gene Context"}
                 </button>
                 <p style="color: #4285F4">
-                    <strong>Ver 1 Transcript:</strong>
+                    <strong>Inclusion form transcript:</strong>
                     {#if blueTranscript}
                         <a href="http://www.ncbi.nlm.nih.gov/nuccore/{blueTranscript}" target="_blank" rel="noopener noreferrer">
                             {blueTranscript}
@@ -362,7 +362,7 @@
                     {/if}
                 </p>
                 <p style="color: #DB4437">
-                    <strong>Ver 2 Transcript:</strong>
+                    <strong>Exclusion form Transcript:</strong>
                     {#if redTranscript}
                         <a href="http://www.ncbi.nlm.nih.gov/nuccore/{redTranscript}" target="_blank" rel="noopener noreferrer">
                             {redTranscript}
