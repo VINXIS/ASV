@@ -228,7 +228,7 @@
         
         ctx.textAlign = "left";
         ctx.font = "12px Inconsolata";
-        ctx.fillText(settings.selectedChr === "All" ? "Position (bp)" : `${settings.selectedChr} Position (bp)`, 5, 25);
+        ctx.fillText(settings.selectedChr === "All" ? "Position (nt)" : `${settings.selectedChr} Position (nt)`, 5, 25);
     }
 
     /// INTERACTIVITY HANDLERS ///
@@ -311,19 +311,19 @@
                 case "SE":
                     const seData = data as SEEvent;
                     tooltipContent += `
-                        <strong>Exon (bp):</strong> ${seData.exonStart}-${seData.exonEnd}<br>
-                        <strong>Upstream (bp):</strong> ${seData.upstreamExonStart}-${seData.upstreamExonEnd}<br>
-                        <strong>Downstream (bp):</strong> ${seData.downstreamExonStart}-${seData.downstreamExonEnd}<br>
+                        <strong>Exon (nt):</strong> ${seData.exonStart}-${seData.exonEnd}<br>
+                        <strong>Upstream (nt):</strong> ${seData.upstreamExonStart}-${seData.upstreamExonEnd}<br>
+                        <strong>Downstream (nt):</strong> ${seData.downstreamExonStart}-${seData.downstreamExonEnd}<br>
                     `;
                     break;
                     
                 case "MXE":
                     const mxeData = data as MXEEvent;
                     tooltipContent += `
-                        <strong>First Exon (bp):</strong> ${mxeData.exon1Start}-${mxeData.exon1End}<br>
-                        <strong>Second Exon (bp):</strong> ${mxeData.exon2Start}-${mxeData.exon2End}<br>
-                        <strong>Upstream (bp):</strong> ${mxeData.upstreamExonStart}-${mxeData.upstreamExonEnd}<br>
-                        <strong>Downstream (bp):</strong> ${mxeData.downstreamExonStart}-${mxeData.downstreamExonEnd}<br>
+                        <strong>First Exon (nt):</strong> ${mxeData.exon1Start}-${mxeData.exon1End}<br>
+                        <strong>Second Exon (nt):</strong> ${mxeData.exon2Start}-${mxeData.exon2End}<br>
+                        <strong>Upstream (nt):</strong> ${mxeData.upstreamExonStart}-${mxeData.upstreamExonEnd}<br>
+                        <strong>Downstream (nt):</strong> ${mxeData.downstreamExonStart}-${mxeData.downstreamExonEnd}<br>
                     `;
                     break;
                     
@@ -331,18 +331,18 @@
                 case "A5SS":
                     const assData = data as ASSEvent;
                     tooltipContent += `
-                        <strong>Long Exon (bp):</strong> ${assData.longExonStart}-${assData.longExonEnd}<br>
-                        <strong>Short Exon (bp):</strong> ${assData.shortExonStart}-${assData.shortExonEnd}<br>
-                        <strong>Flanking (bp):</strong> ${assData.flankingExonStart}-${assData.flankingExonEnd}<br>
+                        <strong>Long Exon (nt):</strong> ${assData.longExonStart}-${assData.longExonEnd}<br>
+                        <strong>Short Exon (nt):</strong> ${assData.shortExonStart}-${assData.shortExonEnd}<br>
+                        <strong>Flanking (nt):</strong> ${assData.flankingExonStart}-${assData.flankingExonEnd}<br>
                     `;
                     break;
                     
                 case "RI":
                     const riData = data as RIEvent;
                     tooltipContent += `
-                        <strong>RI Exon (bp):</strong> ${riData.riExonStart}-${riData.riExonEnd}<br>
-                        <strong>Upstream (bp):</strong> ${riData.upstreamExonStart}-${riData.upstreamExonEnd}<br>
-                        <strong>Downstream (bp):</strong> ${riData.downstreamExonStart}-${riData.downstreamExonEnd}<br>
+                        <strong>RI Exon (nt):</strong> ${riData.riExonStart}-${riData.riExonEnd}<br>
+                        <strong>Upstream (nt):</strong> ${riData.upstreamExonStart}-${riData.upstreamExonEnd}<br>
+                        <strong>Downstream (nt):</strong> ${riData.downstreamExonStart}-${riData.downstreamExonEnd}<br>
                     `;
                     break;
             }
@@ -355,9 +355,9 @@
                 strain: strain,
             };
         } else {
-            // Write bp position of mouse in tooltip
-            const bpPosition = Math.round((mouseX / canvas.width) * (maxPos - minPos) + minPos);
-            setTooltipHTML(`<strong>Position:</strong> ${bpPosition} bp`);
+            // Write nt position of mouse in tooltip
+            const ntPosition = Math.round((mouseX / canvas.width) * (maxPos - minPos) + minPos);
+            setTooltipHTML(`<strong>Position:</strong> ${ntPosition} nt`);
             canvas.style.cursor = "default";
             hoveredPoint = null;
         }
@@ -409,7 +409,7 @@
         if (!selectedEvent)
             return;
         const positions = [getPositionsFromData(selectedEvent.event), ...selectedEvent.geneEvents.map(event => getPositionsFromData(event.event))];
-        // Add a buffer of 1000 bp
+        // Add a buffer of 1000 nt
         const selectedMin = Math.min(...positions.map(pos => pos.start)) - 1000;
         const selectedMax = Math.max(...positions.map(pos => pos.end)) + 1000;
         const newRange = selectedMax - selectedMin;

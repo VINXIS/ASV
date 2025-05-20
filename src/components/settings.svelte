@@ -167,11 +167,11 @@
                 bind:value={settings.FDRThresh}
                 oninput={updateFilteredStrains}
             />
-            <span>{settings.FDRThresh}</span>
+            <span>FDR&le;{settings.FDRThresh}</span>
         </div>
 
         <div class="control-group">
-            <label for="incLevelThreshold">Inc Level Difference (ΔΨ) Threshold:</label>
+            <label for="incLevelThreshold">Inc Level Difference &verbar;ΔΨ&verbar; Threshold:</label>
             <input
                 type="range"
                 id="incLevelThreshold"
@@ -181,7 +181,7 @@
                 bind:value={settings.psiDiffThresh}
                 oninput={updateFilteredStrains}
             />
-            <span>{settings.psiDiffThresh}</span>
+            <span>|ΔΨ|&ge;{settings.psiDiffThresh}&verbar;</span>
         </div>
 
         <div class="control-group">

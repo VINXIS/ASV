@@ -123,11 +123,11 @@
         blueTranscript = null;
         redTranscript = null;
         for (const transcriptId in transcriptGroups) {
-            if (exons.filter(exon => exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 2 || Math.abs(g.end - exon.end) < 2))) {
+            if (exons.filter(exon => exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 || Math.abs(g.end - exon.end) < 3))) {
                 blueTranscript = transcriptId;
                 break;
             }
-            if (exons.filter(exon => !exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 2 || Math.abs(g.end - exon.end) < 2))) {
+            if (exons.filter(exon => !exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 || Math.abs(g.end - exon.end) < 3))) {
                 redTranscript = transcriptId;
                 break;
             } 
@@ -163,7 +163,7 @@
                 mouseData.y >= yInclusionPath - exonHeight/2 &&
                 mouseData.y <= yInclusionPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#4285F4", `${exon.end - exon.start} bp`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#4285F4", `${exon.end - exon.start} nt`);
             }
         });
         
@@ -180,7 +180,7 @@
                 mouseData.y >= yExclusionPath - exonHeight/2 &&
                 mouseData.y <= yExclusionPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#DB4437", `${exon.end - exon.start} bp`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#DB4437", `${exon.end - exon.start} nt`);
             }
         });
         
@@ -205,7 +205,7 @@
                 mouseData.y >= path - exonHeight/2 &&
                 mouseData.y <= path + exonHeight/2
             ) {
-                drawHoverInfo(startX, endX, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, colour, `${junction.end - junction.start} bp`);
+                drawHoverInfo(startX, endX, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, colour, `${junction.end - junction.start} nt`);
                 ctx.lineWidth = 2;
             }
         });
@@ -233,7 +233,7 @@
                 mouseData.y >= yGTFPath - exonHeight/2 &&
                 mouseData.y <= yGTFPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#34A853", `${feature.end - feature.start} bp`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#34A853", `${feature.end - feature.start} nt`);
             }
         });
         
@@ -289,7 +289,7 @@
         
         ctx.textAlign = "left";
         ctx.font = "10px Inconsolata";
-        ctx.fillText("Position (bp)", 5, 25);
+        ctx.fillText("Position (nt)", 5, 25);
     }
 
     function handleMouseMove(event: MouseEvent) {
@@ -345,7 +345,7 @@
         ></canvas>
         <div class="info-divs">
             <div class="info-div">
-                (~2bp leniency checks)
+                (3nt leniency checks)
                 <button
                     onclick={() => toggleContext(!showEntireContext)}
                 >
