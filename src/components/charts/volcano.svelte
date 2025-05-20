@@ -166,7 +166,7 @@
             // Color based on significance and fold change direction
             let color = 'rgb(150, 150, 150)'; // grey for non-significant
 
-            const readCountCheck = d.incCount1Avg >= settings.readCountThresh;
+            const readCountCheck = d.incCount1Avg >= settings.readCountThresh && d.incCount2Avg >= settings.readCountThresh && d.skipCount1Avg >= settings.readCountThresh && d.skipCount2Avg >= settings.readCountThresh;
             if (isSignificant && (!useReadCountFilter || readCountCheck))
                 color = d.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
             
@@ -203,7 +203,7 @@
             const prevY = yScale(previousHoveredPoint.negLogFDR);
             const isSignificant = previousHoveredPoint.FDR < settings.FDRThresh && 
                             Math.abs(previousHoveredPoint.psiDiff) > settings.psiDiffThresh;
-            const readCountCheck = previousHoveredPoint.incCount1Avg >= settings.readCountThresh;
+            const readCountCheck = previousHoveredPoint.incCount1Avg >= settings.readCountThresh && previousHoveredPoint.incCount2Avg >= settings.readCountThresh && previousHoveredPoint.skipCount1Avg >= settings.readCountThresh && previousHoveredPoint.skipCount2Avg >= settings.readCountThresh;
            
             let prevColor = 'rgb(150, 150, 150)'; // grey for non-significant
             if (isSignificant && (!useReadCountFilter || readCountCheck))

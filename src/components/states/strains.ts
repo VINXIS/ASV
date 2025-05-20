@@ -253,7 +253,7 @@ export function updateFilteredStrains() {
     for (const [strainName, strainData] of Object.entries(selectFilteredStrains)) {
         filteredStrains[strainName] = { colour: strainData.colour, events: [] };
         for (const event of strainData.events) {
-            const readCountCheck = event.incCount1Avg >= settings.readCountThresh;
+            const readCountCheck = event.incCount1Avg >= settings.readCountThresh && event.incCount2Avg >= settings.readCountThresh && event.skipCount1Avg >= settings.readCountThresh && event.skipCount2Avg >= settings.readCountThresh;
             const FDRCheck = event.FDR <= settings.FDRThresh;
             const psiDiffCheck = Math.abs(event.psiDiff) >= settings.psiDiffThresh;
             if (readCountCheck && FDRCheck && psiDiffCheck) {

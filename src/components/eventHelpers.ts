@@ -97,7 +97,7 @@ export function getSplicingExons(data: Event): {
             const mxeData = data as MXEEvent;
             if (strand === "+") {
                 // On + strand, first exon is the inclusion form
-                // Second exon is the exclusion form
+                // Second exon is the skipped form
                 exons = [
                     { start: mxeData.upstreamExonStart, end: mxeData.upstreamExonEnd, type: "upstream", inclusion: true },
                     { start: mxeData.exon1Start, end: mxeData.exon1End, type: "first", inclusion: true },
@@ -106,7 +106,7 @@ export function getSplicingExons(data: Event): {
                 ];
             } else {
                 // On - strand, second exon is the inclusion form
-                // First exon is the exclusion form
+                // First exon is the skipped form
                 exons = [
                     { start: mxeData.downstreamExonStart, end: mxeData.downstreamExonEnd, type: "downstream", inclusion: true },
                     { start: mxeData.exon2Start, end: mxeData.exon2End, type: "second", inclusion: true },

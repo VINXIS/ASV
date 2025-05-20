@@ -36,7 +36,7 @@
         if (!selectedEvent)
             return;
         filteredEvents = selectedEvent.geneEvents.filter(event => {
-            const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh;
+            const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh && event.event.incCount2Avg >= settings.readCountThresh && event.event.skipCount1Avg >= settings.readCountThresh && event.event.skipCount2Avg >= settings.readCountThresh;
             if (readCountThresh && !readCountCheck)
                 return false;
             if (!useFilter) return true;
@@ -145,7 +145,7 @@
         const exonHeight = height * 0.3;
         const yGTFPath = y + height * 0.1;
         const yInclusionPath = y + height * 0.5;
-        const yExclusionPath = y + height * 0.9;
+        const ySkippedPath = y + height * 0.9;
         
         // Function to scale genomic position to canvas x coordinate
         const scaleX = (pos: number) => ((pos - genomeStart - minPos) / posRange) * width + x;
@@ -163,7 +163,7 @@
                 mouseData.y >= yInclusionPath - exonHeight/2 &&
                 mouseData.y <= yInclusionPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#4285F4", `${exon.end - exon.start} nt`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, "#4285F4", `${exon.end - exon.start} nt`);
             }
         });
         
@@ -172,15 +172,15 @@
         exons.filter(e => (!e.inclusion || e.type === "upstream" || e.type === "downstream" || e.type === "flanking") && e.type !== "junction").forEach(exon => {
             const exonX = scaleX(exon.start);
             const exonWidth = scaleX(exon.end) - exonX;
-            ctx!.fillRect(exonX, yExclusionPath - exonHeight/2, exonWidth, exonHeight);
+            ctx!.fillRect(exonX, ySkippedPath - exonHeight/2, exonWidth, exonHeight);
 
             if (mouseData &&
                 mouseData.x >= exonX &&
                 mouseData.x <= exonX + exonWidth &&
-                mouseData.y >= yExclusionPath - exonHeight/2 &&
-                mouseData.y <= yExclusionPath + exonHeight/2
+                mouseData.y >= ySkippedPath - exonHeight/2 &&
+                mouseData.y <= ySkippedPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#DB4437", `${exon.end - exon.start} nt`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, "#DB4437", `${exon.end - exon.start} nt`);
             }
         });
         
@@ -189,7 +189,7 @@
         exons.filter(e => e.type === "junction").forEach(junction => {
             const startX = scaleX(junction.start);
             const endX = scaleX(junction.end);
-            const path = junction.inclusion ? yInclusionPath : yExclusionPath;
+            const path = junction.inclusion ? yInclusionPath : ySkippedPath;
             const colour = junction.inclusion ? '#4285F4' : '#DB4437';
 
             ctx.strokeStyle = colour;
@@ -205,7 +205,7 @@
                 mouseData.y >= path - exonHeight/2 &&
                 mouseData.y <= path + exonHeight/2
             ) {
-                drawHoverInfo(startX, endX, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, colour, `${junction.end - junction.start} nt`);
+                drawHoverInfo(startX, endX, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, colour, `${junction.end - junction.start} nt`);
                 ctx.lineWidth = 2;
             }
         });
@@ -233,7 +233,7 @@
                 mouseData.y >= yGTFPath - exonHeight/2 &&
                 mouseData.y <= yGTFPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, yExclusionPath + exonHeight/2, "#34A853", `${feature.end - feature.start} nt`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, "#34A853", `${feature.end - feature.start} nt`);
             }
         });
         
@@ -254,8 +254,8 @@
         ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}`, width + x + 30, yInclusionPath - 5);
         ctx.fillText(`Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, width + x + 30, yInclusionPath + 5);
         ctx.fillStyle = '#DB4437';
-        ctx.fillText(`1-Ψ1: ${(1 - selectedEvent.event.psi1Avg).toFixed(3)}`, width + x + 30, yExclusionPath - 5);
-        ctx.fillText(`1-Ψ2: ${(1 - selectedEvent.event.psi2Avg).toFixed(3)}`, width + x + 30, yExclusionPath + 5);
+        ctx.fillText(`1-Ψ1: ${(1 - selectedEvent.event.psi1Avg).toFixed(3)}`, width + x + 30, ySkippedPath - 5);
+        ctx.fillText(`1-Ψ2: ${(1 - selectedEvent.event.psi2Avg).toFixed(3)}`, width + x + 30, ySkippedPath + 5);
         ctx.fillStyle = '#34A853';
         ctx.fillText("GTF", scaleX(maxPos) + ctx.measureText("GTF").width, yGTFPath);
 
@@ -362,7 +362,7 @@
                     {/if}
                 </p>
                 <p style="color: #DB4437">
-                    <strong>Exclusion form Transcript:</strong>
+                    <strong>Skipped form Transcript:</strong>
                     {#if redTranscript}
                         <a href="http://www.ncbi.nlm.nih.gov/nuccore/{redTranscript}" target="_blank" rel="noopener noreferrer">
                             {redTranscript}
@@ -376,8 +376,10 @@
                 <p><strong>Total Position:</strong> {selectedPositions.start} - {selectedPositions.end}</p>
                 <p><strong>Inclusion Level 1 Avg.:</strong> {Math.abs(selectedEvent.event.psi1Avg) < 0.001 ? selectedEvent.event.psi1Avg.toExponential(3) : selectedEvent.event.psi1Avg.toFixed(3)}</p>
                 <p><strong>Inclusion Level 2 Avg.:</strong> {Math.abs(selectedEvent.event.psi2Avg) < 0.001 ? selectedEvent.event.psi2Avg.toExponential(3) : selectedEvent.event.psi2Avg.toFixed(3)}</p>
-                <p><strong>Read Count 1 Avg.:</strong> {selectedEvent.event.incCount1Avg.toFixed(3)}</p>
-                <p><strong>Read Count 2 Avg.:</strong> {selectedEvent.event.incCount2Avg.toFixed(3)}</p>
+                <p><strong>Inclusion Read Count 1 Avg.:</strong> {selectedEvent.event.incCount1Avg.toFixed(3)}</p>
+                <p><strong>Inclusion Read Count 2 Avg.:</strong> {selectedEvent.event.incCount2Avg.toFixed(3)}</p>
+                <p><strong>Skipped Read Count 1 Avg.:</strong> {selectedEvent.event.skipCount1Avg.toFixed(3)}</p>
+                <p><strong>Skipped Read Count 2 Avg.:</strong> {selectedEvent.event.skipCount2Avg.toFixed(3)}</p>
                 {#if selectedEvent.event.eventType === 'SE'}
                     {@const seEvent = selectedEvent.event as SEEvent}
                     <p><strong>Target Exon:</strong> {seEvent.exonStart} - {seEvent.exonEnd}</p>

@@ -153,7 +153,7 @@
                 bind:value={settings.readCountThresh}
                 oninput={updateFilteredStrains}
             />
-            <span>Count1&ge;{settings.readCountThresh}</span>
+            <span>IncCount1&ge;{settings.readCountThresh} + IncCount2&ge;{settings.readCountThresh} + SkipCount1&ge;{settings.readCountThresh} + SkipCount2&ge;{settings.readCountThresh}</span>
         </div>
 
         <div class="control-group">
