@@ -135,10 +135,10 @@
         
         // Get position range for scaling
         const positions = getPositionsFromData(selectedEvent.event);
-        const genomeStart = Math.min(...uniqueGenes.map(g => g.start));
-        const genomeEnd = Math.max(...uniqueGenes.map(g => g.end));
-        const minPos = showEntireContext ? 0 : positions.start - genomeStart;
-        const maxPos = showEntireContext ? (genomeEnd - genomeStart) : (positions.end - genomeStart);
+        const absoluteStart = Math.min(positions.start, ...uniqueGenes.map(g => g.start));
+        const absoluteEnd = Math.max(positions.end, ...uniqueGenes.map(g => g.end));
+        const minPos = showEntireContext ? 0 : positions.start - absoluteStart;
+        const maxPos = showEntireContext ? (absoluteEnd - absoluteStart) : (positions.end - absoluteStart);
         const posRange = maxPos - minPos;
         
         // Define visual properties
@@ -148,7 +148,7 @@
         const ySkippedPath = y + height * 0.9;
         
         // Function to scale genomic position to canvas x coordinate
-        const scaleX = (pos: number) => ((pos - genomeStart - minPos) / posRange) * width + x;
+        const scaleX = (pos: number) => ((pos - absoluteStart - minPos) / posRange) * width + x;
         
         // Draw inclusion path exons (solid)
         ctx.fillStyle = '#4285F4';  // Blue for inclusion path
@@ -212,7 +212,7 @@
 
         // Draw Exons for GTF Path
         uniqueGenes.forEach(feature => {
-            if ((feature.start - genomeStart) < minPos || (feature.end - genomeStart) > maxPos) return; // Skip if outside range
+            if ((feature.start - absoluteStart) < minPos || (feature.end - absoluteStart) > maxPos) return; // Skip if outside range
 
             const exonX = scaleX(feature.start);
             const exonWidth = scaleX(feature.end) - exonX;
