@@ -29,6 +29,13 @@
         ctx.strokeStyle = "black";
         ctx.lineWidth = 2;
         ctx.stroke();
+        // Remove line if angle is full circle
+        if (endAngle - startAngle >= Math.PI * 2) {
+            ctx.arc(centerX, centerY, radius, -0.1, 0.1);
+            ctx.closePath();
+            ctx.fillStyle = colour;
+            ctx.fill();
+        }
     }
 
     function drawLabel(
@@ -45,11 +52,11 @@
         // Arbitrary cutoff for segment size to not write labels on very small segments
         if (segmentAngle < 0.15) return;
         
-        // Positioning the text at 1/2 distance from center to edge at the middle of the segment
+        // Positioning the text at 1/2 distance from center to edge at the middle of the segment (unless )
         const textRadius = radius * 0.5;
         const midAngle = startAngle + segmentAngle / 2;
-        const textX = centerX + Math.cos(midAngle) * textRadius;
-        const textY = centerY + Math.sin(midAngle) * textRadius;
+        const textX = centerX + (segmentAngle === (Math.PI * 2) ? 0 : (Math.cos(midAngle) * textRadius));
+        const textY = centerY + (segmentAngle === (Math.PI * 2) ? 0 : (Math.sin(midAngle) * textRadius));
         
         const text = `${key}: ${value}`;
         const percentText = `${((value / total) * 100).toFixed(0)}%`;

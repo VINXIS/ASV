@@ -205,9 +205,9 @@
         
         // Optional: Add appropriate labels depending on splicing type
         ctx.fillStyle = '#4285F4';
-        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)} Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}; Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, x + width - 30, yInclusionPath - exonHeight/2 - 5);
         ctx.fillStyle = '#DB4437';
-        ctx.fillText(`1 - Ψ1: ${(1-selectedEvent.event.psi1Avg).toFixed(3)} 1 - Ψ2: ${(1-selectedEvent.event.psi2Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
+        ctx.fillText(`1 - Ψ1: ${(1-selectedEvent.event.psi1Avg).toFixed(3)}; 1 - Ψ2: ${(1-selectedEvent.event.psi2Avg).toFixed(3)}`, x + width - 30, yExclusionPath - exonHeight/2 - 5);
         ctx.fillStyle = '#34A853';
         ctx.fillText("GTF", scaleX(maxPos) + ctx.measureText("GTF").width, yGTFPath);
     }
