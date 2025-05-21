@@ -20,6 +20,7 @@
         endAngle: number,
         colour: string,
     ) {
+        if (endAngle - startAngle === 0) return;
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.arc(centerX, centerY, radius, startAngle, endAngle);
