@@ -170,8 +170,8 @@
             // Only draw if within visible range
             if (exon.end < adjustedMin || exon.start > adjustedMax) return;
 
-            const exonX = scaleX(exon.start);
-            const exonWidth = scaleX(exon.end) - exonX;
+            const exonX = Math.max(scaleX(exon.start), x);
+            const exonWidth = Math.min(scaleX(exon.end), x + width) - exonX;
             ctx!.fillRect(exonX, yInclusionPath - exonHeight/2, exonWidth, exonHeight);
 
             if (mouseData &&
@@ -190,8 +190,8 @@
             // Only draw if within visible range
             if (exon.end < adjustedMin || exon.start > adjustedMax) return;
 
-            const exonX = scaleX(exon.start);
-            const exonWidth = scaleX(exon.end) - exonX;
+            const exonX = Math.max(scaleX(exon.start), x);
+            const exonWidth = Math.min(scaleX(exon.end), x + width) - exonX;
             ctx!.fillRect(exonX, ySkippedPath - exonHeight/2, exonWidth, exonHeight);
 
             if (mouseData &&
@@ -210,8 +210,8 @@
             // Only draw if within visible range
             if (junction.end < adjustedMin || junction.start > adjustedMax) return;
 
-            const startX = scaleX(junction.start);
-            const endX = scaleX(junction.end);
+            const startX = Math.max(scaleX(junction.start), x);
+            const endX = Math.min(scaleX(junction.end), x + width);
             const path = junction.inclusion ? yInclusionPath : ySkippedPath;
             const colour = junction.inclusion ? colours.inclusion : colours.skipped;
 
@@ -238,8 +238,8 @@
             // Only draw if within visible range
             if (feature.end < adjustedMin || feature.start > adjustedMax) return;
 
-            const exonX = scaleX(feature.start);
-            const exonWidth = scaleX(feature.end) - exonX;
+            const exonX = Math.max(scaleX(feature.start), x);
+            const exonWidth = Math.min(scaleX(feature.end), x + width) - exonX;
 
             ctx.fillStyle = colours.gtf;
             ctx.fillRect(exonX, yGTFPath - exonHeight/2, exonWidth, exonHeight);
