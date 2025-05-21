@@ -114,7 +114,7 @@
         // Currently "gene_number" is corresponding to each transcript, it should instead correspond to their location instead
         const geneFeatures = getFeaturesByGene(selectedEvent.event.geneName || selectedEvent.event.geneID).filter(g => g.feature === "exon");
         // Get unique genes from start/end positions
-        let uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => t.start === g.start && t.end === g.end));
+        let uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => Math.abs(t.start - g.start) < 3 && Math.abs(t.end - g.end) < 3));
         uniqueGenes.sort((a, b) => a.start - b.start);
         uniqueGenes = uniqueGenes.map((g, index) => ({
             ...g,
@@ -403,7 +403,7 @@
         if (!selectedEvent) return;
         const positions = getPositionsFromData(selectedEvent.event);
         const geneFeatures = getFeaturesByGene(selectedEvent.event.geneName || selectedEvent.event.geneID).filter(g => g.feature === "exon");
-        const uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => t.start === g.start && g.end === g.end));
+        const uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => Math.abs(t.start - g.start) < 3 && Math.abs(t.end - g.end) < 3));
         const absoluteStart = Math.min(positions.start, ...uniqueGenes.map(g => g.start));
         const absoluteEnd = Math.max(positions.end, ...uniqueGenes.map(g => g.end));
 
