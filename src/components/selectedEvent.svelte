@@ -15,7 +15,6 @@
     let skippedTranscript: string | null = null;
     let useFilter = true;
     let readCountThresh = true;
-    let showEntireContext = false;
     let mouseData: { x: number; y: number } | null = null;
     let filteredEvents: {
         strain: {
@@ -25,6 +24,12 @@
         event: Event;
     }[] = [];
     let eventCounts: Record<string, number> = {};
+
+    // Zoom variables
+    let zoomLevel = 1;
+    let xOffset = 0;
+    let drag = false;
+    let lastMouseX = 0;
 
     const colours = {
         inclusion: "#4285F4",
@@ -37,7 +42,7 @@
         return arr.length > 0 ? arr.join(",") : "N/A";
     }
 
-    function updateValues() {
+    function updateValues(mustDraw = true) {
         selectedEvent = getSelectedEvent();
         if (!selectedEvent)
             return;
@@ -58,7 +63,8 @@
             acc[eventType] = (acc[eventType] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
-        draw();
+        if (mustDraw)
+            draw();
     }
 
     function drawHoverInfo(startX: number, endX: number, yStart: number, yEnd: number, colour: string, value: string) {
@@ -108,7 +114,7 @@
         // Currently "gene_number" is corresponding to each transcript, it should instead correspond to their location instead
         const geneFeatures = getFeaturesByGene(selectedEvent.event.geneName || selectedEvent.event.geneID).filter(g => g.feature === "exon");
         // Get unique genes from start/end positions
-        let uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => t.start === g.start || t.end === g.end));
+        let uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => t.start === g.start && t.end === g.end));
         uniqueGenes.sort((a, b) => a.start - b.start);
         uniqueGenes = uniqueGenes.map((g, index) => ({
             ...g,
@@ -141,9 +147,13 @@
         const positions = getPositionsFromData(selectedEvent.event);
         const absoluteStart = Math.min(positions.start, ...uniqueGenes.map(g => g.start));
         const absoluteEnd = Math.max(positions.end, ...uniqueGenes.map(g => g.end));
-        const minPos = showEntireContext ? 0 : positions.start - absoluteStart;
-        const maxPos = showEntireContext ? (absoluteEnd - absoluteStart) : (positions.end - absoluteStart);
-        const posRange = maxPos - minPos;
+        const totalRange = absoluteEnd - absoluteStart;
+        
+        // Apply zoom and offset
+        const visibleRange = totalRange / zoomLevel;
+        const adjustedMin = absoluteStart + xOffset * totalRange;
+        const adjustedMax = Math.min(absoluteEnd, adjustedMin + visibleRange);
+        const posRange = adjustedMax - adjustedMin;
         
         // Define visual properties
         const exonHeight = height * 0.3;
@@ -152,11 +162,14 @@
         const ySkippedPath = y + height * 0.9;
         
         // Function to scale genomic position to canvas x coordinate
-        const scaleX = (pos: number) => ((pos - absoluteStart - minPos) / posRange) * width + x;
+        const scaleX = (pos: number) => ((pos - adjustedMin) / posRange) * width + x
         
         // Draw inclusion path exons (solid)
         ctx.fillStyle = colours.inclusion;
         exons.filter(e => e.inclusion && e.type !== "junction").forEach(exon => {
+            // Only draw if within visible range
+            if (exon.end < adjustedMin || exon.start > adjustedMax) return;
+
             const exonX = scaleX(exon.start);
             const exonWidth = scaleX(exon.end) - exonX;
             ctx!.fillRect(exonX, yInclusionPath - exonHeight/2, exonWidth, exonHeight);
@@ -174,6 +187,9 @@
         // Draw skipped path exons (solid)
         ctx.fillStyle = colours.skipped;  // Red for skipped path
         exons.filter(e => (!e.inclusion || e.type === "upstream" || e.type === "downstream" || e.type === "flanking") && e.type !== "junction").forEach(exon => {
+            // Only draw if within visible range
+            if (exon.end < adjustedMin || exon.start > adjustedMax) return;
+
             const exonX = scaleX(exon.start);
             const exonWidth = scaleX(exon.end) - exonX;
             ctx!.fillRect(exonX, ySkippedPath - exonHeight/2, exonWidth, exonHeight);
@@ -191,6 +207,9 @@
         // Draw junctions (dashed)
         ctx.lineWidth = 2;
         exons.filter(e => e.type === "junction").forEach(junction => {
+            // Only draw if within visible range
+            if (junction.end < adjustedMin || junction.start > adjustedMax) return;
+
             const startX = scaleX(junction.start);
             const endX = scaleX(junction.end);
             const path = junction.inclusion ? yInclusionPath : ySkippedPath;
@@ -216,7 +235,8 @@
 
         // Draw Exons for GTF Path
         uniqueGenes.forEach(feature => {
-            if ((feature.start - absoluteStart) < minPos || (feature.end - absoluteStart) > maxPos) return; // Skip if outside range
+            // Only draw if within visible range
+            if (feature.end < adjustedMin || feature.start > adjustedMax) return;
 
             const exonX = scaleX(feature.start);
             const exonWidth = scaleX(feature.end) - exonX;
@@ -224,11 +244,13 @@
             ctx.fillStyle = colours.gtf;
             ctx.fillRect(exonX, yGTFPath - exonHeight/2, exonWidth, exonHeight);
 
-            // Write the exon number on top
-            ctx.fillStyle = textColour;
-            ctx.font = '10px Inconsolata';
-            ctx.textAlign = 'center';
-            ctx.fillText(`E${feature.attributes["exon_number"]}`, exonX + exonWidth / 2, yGTFPath - exonHeight/2 - 5);
+            // Write the exon number on top if there's enough space
+            if (exonWidth > 15) {
+                ctx.fillStyle = textColour;
+                ctx.font = '10px Inconsolata';
+                ctx.textAlign = 'center';
+                ctx.fillText(`E${feature.attributes["exon_number"]}`, exonX + exonWidth / 2, yGTFPath - exonHeight/2 - 5);
+            }
 
             if (
                 mouseData &&
@@ -280,20 +302,24 @@
         const tickInterval = posRange / tickCount;
         
         for (let i = 0; i <= tickCount; i++) {
-            const position = minPos + i * tickInterval;
+            const position = adjustedMin + i * tickInterval;
             const xPos = (i / tickCount) * width + x;            
             ctx.beginPath();
             ctx.moveTo(xPos, 0);
             ctx.lineTo(xPos, 5);
             ctx.stroke();
             
-            const label = Math.round(position);
+            const label = Math.round(position - absoluteStart);
             ctx.fillText(label.toString(), xPos, 15);
         }
         
         ctx.textAlign = "left";
         ctx.font = "10px Inconsolata";
         ctx.fillText("Position (nt)", 5, 25);
+
+        // Draw zoom indicator
+        ctx.textAlign = "right";
+        ctx.fillText(`Zoom: ${zoomLevel.toFixed(1)}x`, canvas.width - 10, 25);
     }
 
     function handleMouseMove(event: MouseEvent) {
@@ -301,12 +327,93 @@
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        mouseData = { x, y };
-        draw();
+        
+        if (drag) {
+            // Calculate how much the mouse has moved
+            const dx = lastMouseX - x;
+            lastMouseX = x;
+            
+            // Adjust xOffset based on mouse movement and current zoom level
+            if (!selectedEvent) return;
+            
+            // Convert pixel movement to genomic position proportion
+            const moveAmount = dx / canvas.width * (1 / zoomLevel);
+            xOffset = Math.max(0, Math.min(1 - (1/zoomLevel), xOffset + moveAmount));
+            
+            draw();
+        } else {
+            mouseData = { x, y };
+            draw();
+        }
+    }
+
+    function handleMouseDown(event: MouseEvent) {
+        if (!canvas) return;
+        drag = true;
+        const rect = canvas.getBoundingClientRect();
+        lastMouseX = event.clientX - rect.left;
+        canvas.style.cursor = "grabbing";
+    }
+
+    function handleMouseUp() {
+        drag = false;
+        if (canvas) canvas.style.cursor = "default";
     }
 
     function handleMouseLeave() {
+        drag = false;
         mouseData = null;
+        if (canvas) canvas.style.cursor = "default";
+        draw();
+    }
+
+    function handleWheel(event: WheelEvent) {
+        if (!canvas || !selectedEvent) return;
+        
+        event.preventDefault();
+        
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseProportion = (mouseX - 25) / (canvas.width - 100);
+        
+        // Calculate zoom level change
+        const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+        const newZoomLevel = Math.min(1000, Math.max(1, zoomLevel * zoomFactor));
+        
+        // Keep the mouse position fixed relative to the genomic position
+        const oldVisibleProportion = 1 / zoomLevel;
+        const newVisibleProportion = 1 / newZoomLevel;
+        const oldOffset = xOffset;
+        const offsetUnderMouse = oldOffset + mouseProportion * oldVisibleProportion;
+        const newOffset = offsetUnderMouse - mouseProportion * newVisibleProportion;
+        
+        zoomLevel = newZoomLevel;
+        xOffset = Math.max(0, Math.min(1 - (1/zoomLevel), newOffset));
+        
+        draw();
+    }
+
+    function resetView() {
+        zoomLevel = 1;
+        xOffset = 0;
+        draw();
+    }
+
+    function zoomToEvent() {
+        if (!selectedEvent) return;
+        const positions = getPositionsFromData(selectedEvent.event);
+        const geneFeatures = getFeaturesByGene(selectedEvent.event.geneName || selectedEvent.event.geneID).filter(g => g.feature === "exon");
+        const uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => t.start === g.start && g.end === g.end));
+        const absoluteStart = Math.min(positions.start, ...uniqueGenes.map(g => g.start));
+        const absoluteEnd = Math.max(positions.end, ...uniqueGenes.map(g => g.end));
+
+        const totalRange = absoluteEnd - absoluteStart;
+        const eventRange = positions.end - positions.start;
+
+        // Set zoom level to fit the event
+        zoomLevel = totalRange / eventRange;
+        xOffset = (positions.start - absoluteStart) / (absoluteEnd - absoluteStart);
+        
         draw();
     }
 
@@ -320,13 +427,11 @@
         updateValues();
     }
 
-    function toggleContext(value: boolean) {
-        showEntireContext = value;
-        updateValues();
-    }
-
     rootObserver(draw);
-    updatedSelectedEvent.addEventListener("update", updateValues);
+    updatedSelectedEvent.addEventListener("update", () => {
+        updateValues(false);
+        zoomToEvent();
+    });
 </script>
 
 {#if selectedEvent}
@@ -338,23 +443,32 @@
             onclick={() => setSelectedEvent(null)}
         >X</button>
         <h3 style="color: {selectedEvent.strain.colour}">{selectedEvent.event.geneName || selectedEvent.event.geneID} - {selectedEvent.event.eventType}</h3>
+        <div class="canvas-controls">
+            <button class="reset-view-button" onclick={resetView}>
+                Full Gene Context
+            </button>
+            <button class="reset-view-button" onclick={zoomToEvent}>
+                Zoom to Event
+            </button>
+            <span class="zoom-instructions">Use mouse wheel to zoom, drag to pan</span>
+        </div>
+        <br>
         <canvas
             id="splicing-canvas"
             width="700"
             height="300"
             bind:this={canvas}
+            onmousedown={handleMouseDown}
+            onmouseup={handleMouseUp}
             onmouseleave={handleMouseLeave}
             onmousemove={handleMouseMove}
+            onclick={() => {}} 
+            onwheel={handleWheel}
             style="display: block; margin: 0 auto;"
         ></canvas>
         <div class="info-divs">
             <div class="info-div">
                 (3nt leniency checks)
-                <button
-                    onclick={() => toggleContext(!showEntireContext)}
-                >
-                    {showEntireContext ? "Show Event Context" : "Show Gene Context"}
-                </button>
                 <p style="color: {colours.inclusion}">
                     <strong>Inclusion form transcript:</strong>
                     {#if inclusionTranscript}
