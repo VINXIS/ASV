@@ -11,8 +11,8 @@
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
-    let blueTranscript: string | null = null;
-    let redTranscript: string | null = null;
+    let inclusionTranscript: string | null = null;
+    let skippedTranscript: string | null = null;
     let useFilter = true;
     let readCountThresh = true;
     let showEntireContext = false;
@@ -25,6 +25,12 @@
         event: Event;
     }[] = [];
     let eventCounts: Record<string, number> = {};
+
+    const colours = {
+        inclusion: "#4285F4",
+        skipped: "#DB4437",
+        gtf: "#888888",
+    }
 
     function arrayToString(arr?: number[]): string {
         if (!arr) return "N/A";
@@ -120,17 +126,15 @@
         }, {} as Record<string, Feature[]>);
 
         // See which transcript the selected event belongs to
-        blueTranscript = null;
-        redTranscript = null;
+        inclusionTranscript = null;
+        skippedTranscript = null;
         for (const transcriptId in transcriptGroups) {
-            if (exons.filter(exon => exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 || Math.abs(g.end - exon.end) < 3))) {
-                blueTranscript = transcriptId;
+            if (exons.filter(exon => exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
+                inclusionTranscript = transcriptId;
+            if (exons.filter(exon => !exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
+                skippedTranscript = transcriptId;
+            if (inclusionTranscript && skippedTranscript)
                 break;
-            }
-            if (exons.filter(exon => !exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 || Math.abs(g.end - exon.end) < 3))) {
-                redTranscript = transcriptId;
-                break;
-            } 
         }
         
         // Get position range for scaling
@@ -151,7 +155,7 @@
         const scaleX = (pos: number) => ((pos - absoluteStart - minPos) / posRange) * width + x;
         
         // Draw inclusion path exons (solid)
-        ctx.fillStyle = '#4285F4';  // Blue for inclusion path
+        ctx.fillStyle = colours.inclusion;
         exons.filter(e => e.inclusion && e.type !== "junction").forEach(exon => {
             const exonX = scaleX(exon.start);
             const exonWidth = scaleX(exon.end) - exonX;
@@ -163,12 +167,12 @@
                 mouseData.y >= yInclusionPath - exonHeight/2 &&
                 mouseData.y <= yInclusionPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, "#4285F4", `${exon.end - exon.start} nt`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, colours.inclusion, `${exon.end - exon.start} nt`);
             }
         });
         
-        // Draw exclusion path exons (solid)
-        ctx.fillStyle = '#DB4437';  // Red for exclusion path
+        // Draw skipped path exons (solid)
+        ctx.fillStyle = colours.skipped;  // Red for skipped path
         exons.filter(e => (!e.inclusion || e.type === "upstream" || e.type === "downstream" || e.type === "flanking") && e.type !== "junction").forEach(exon => {
             const exonX = scaleX(exon.start);
             const exonWidth = scaleX(exon.end) - exonX;
@@ -180,7 +184,7 @@
                 mouseData.y >= ySkippedPath - exonHeight/2 &&
                 mouseData.y <= ySkippedPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, "#DB4437", `${exon.end - exon.start} nt`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, colours.skipped, `${exon.end - exon.start} nt`);
             }
         });
         
@@ -190,7 +194,7 @@
             const startX = scaleX(junction.start);
             const endX = scaleX(junction.end);
             const path = junction.inclusion ? yInclusionPath : ySkippedPath;
-            const colour = junction.inclusion ? '#4285F4' : '#DB4437';
+            const colour = junction.inclusion ? colours.inclusion : colours.skipped;
 
             ctx.strokeStyle = colour;
             ctx!.beginPath();
@@ -217,7 +221,7 @@
             const exonX = scaleX(feature.start);
             const exonWidth = scaleX(feature.end) - exonX;
 
-            ctx.fillStyle = '#34A853';  // Green for GTF path
+            ctx.fillStyle = colours.gtf;
             ctx.fillRect(exonX, yGTFPath - exonHeight/2, exonWidth, exonHeight);
 
             // Write the exon number on top
@@ -233,13 +237,13 @@
                 mouseData.y >= yGTFPath - exonHeight/2 &&
                 mouseData.y <= yGTFPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, "#34A853", `${feature.end - feature.start} nt`);
+                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, colours.gtf, `${feature.end - feature.start} nt`);
             }
         });
         
         // Add labels
         ctx.fillStyle = textColour;
-        ctx.font = '10px Inconsolata';
+        ctx.font = '12px Inconsolata';
         ctx.textAlign = 'center';
         
         // Draw splicing type label
@@ -250,14 +254,14 @@
         ctx.fillText(`${strandSymbol} ${selectedEvent.event.strand} strand`, x + width/2, y + height + 20);
         
         // Optional: Add appropriate labels depending on splicing type
-        ctx.fillStyle = '#4285F4';
-        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}`, width + x + 30, yInclusionPath - 5);
-        ctx.fillText(`Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, width + x + 30, yInclusionPath + 5);
-        ctx.fillStyle = '#DB4437';
-        ctx.fillText(`1-Ψ1: ${(1 - selectedEvent.event.psi1Avg).toFixed(3)}`, width + x + 30, ySkippedPath - 5);
-        ctx.fillText(`1-Ψ2: ${(1 - selectedEvent.event.psi2Avg).toFixed(3)}`, width + x + 30, ySkippedPath + 5);
-        ctx.fillStyle = '#34A853';
-        ctx.fillText("GTF", scaleX(maxPos) + ctx.measureText("GTF").width, yGTFPath);
+        ctx.fillStyle = colours.inclusion;
+        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}`, width + x + 32, yInclusionPath - 7);
+        ctx.fillText(`Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, width + x + 32, yInclusionPath + 7);
+        ctx.fillStyle = colours.skipped;
+        ctx.fillText(`1-Ψ1: ${(1 - selectedEvent.event.psi1Avg).toFixed(3)}`, width + x + 38, ySkippedPath - 7);
+        ctx.fillText(`1-Ψ2: ${(1 - selectedEvent.event.psi2Avg).toFixed(3)}`, width + x + 38, ySkippedPath + 7);
+        ctx.fillStyle = colours.gtf;
+        ctx.fillText("GTF", width + x + 16, yGTFPath);
 
         // X axis
         ctx.strokeStyle = textColour;
@@ -351,21 +355,21 @@
                 >
                     {showEntireContext ? "Show Event Context" : "Show Gene Context"}
                 </button>
-                <p style="color: #4285F4">
+                <p style="color: {colours.inclusion}">
                     <strong>Inclusion form transcript:</strong>
-                    {#if blueTranscript}
-                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{blueTranscript}" target="_blank" rel="noopener noreferrer">
-                            {blueTranscript}
+                    {#if inclusionTranscript}
+                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{inclusionTranscript}" target="_blank" rel="noopener noreferrer">
+                            {inclusionTranscript}
                         </a>
                     {:else}
                         N/A
                     {/if}
                 </p>
-                <p style="color: #DB4437">
+                <p style="color: {colours.skipped}">
                     <strong>Skipped form Transcript:</strong>
-                    {#if redTranscript}
-                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{redTranscript}" target="_blank" rel="noopener noreferrer">
-                            {redTranscript}
+                    {#if skippedTranscript}
+                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{skippedTranscript}" target="_blank" rel="noopener noreferrer">
+                            {skippedTranscript}
                         </a>
                     {:else}
                         N/A
