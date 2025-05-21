@@ -434,7 +434,7 @@
                 ></PieChart>
                 <VolcanoChart
                     data={[selectedEvent.event, ...selectedEvent.geneEvents.map(e => e.event)]}
-                    strain={{ name: selectedEvent.event.geneName, colour: selectedEvent.strain.colour }}
+                    strain={{ name: selectedEvent.strain.name, colour: selectedEvent.strain.colour }}
                     updateOnFilter="selectedEvent"
                 ></VolcanoChart>
             </div>
@@ -471,7 +471,7 @@
                                 }}
                             >
                                 <span style="text-decoration: underline;">
-                                    {#if selectedEvent.strain.name === event.strain.name && selectedPositions.start === positions.start && selectedPositions.end === positions.end && selectedEvent.event.eventType === event.event.eventType && selectedEvent.event.strand === event.event.strand && selectedEvent.event.psiDiff === event.event.psiDiff && selectedEvent.event.FDR === event.event.FDR}
+                                    {#if selectedEvent.event.ID === event.event.ID}
                                         <strong>{event.strain.name} (Selected)</strong>
                                     {:else}
                                         {event.strain.name}
