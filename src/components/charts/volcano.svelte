@@ -13,7 +13,12 @@
     let hoveredPoint: Event | null = null;
     let previousHoveredPoint: Event | null = null;
     let useReadCountFilter = $state(false);
+    let filteredData = setFilteredData();
     const margin = { top: 50, right: 50, bottom: 50, left: 60 };
+
+    function setFilteredData() {
+        return useReadCountFilter ? data.filter(d => d.incCount1Avg >= settings.readCountThresh && d.incCount2Avg >= settings.readCountThresh && d.skipCount1Avg >= settings.readCountThresh && d.skipCount2Avg >= settings.readCountThresh) : data;
+    }
 
     function getCanvasSizeAndScales() {
         if (!canvas)
@@ -23,10 +28,10 @@
         const height = canvas.height - margin.top - margin.bottom;
 
         // Find data ranges
-        const filteredData = data.filter(d => d.FDR !== 0);
+        const fdr0Data = filteredData.filter(d => d.FDR !== 0);
         
         // Check if there's valid data
-        if (filteredData.length === 0) {
+        if (fdr0Data.length === 0) {
             // Return default scales if no valid data
             const xScale = () => margin.left + width/2; // Center point
             const yScale = () => margin.top + height/2; // Center point
@@ -35,7 +40,7 @@
         
         // Find data ranges
         // Can't use Math.min and Math.max because of maximum call stack size exceeded errors
-        const psiDiffs = filteredData.map(d => d.psiDiff);
+        const psiDiffs = filteredData.map(d => d.psiDiff); // not fdr0Data for psiDiff because we want to show all points
         let xMin = Infinity;
         let xMax = -Infinity;
         psiDiffs.forEach(diff => {
@@ -44,18 +49,18 @@
         });
         const yMin = 0;
         let yMax = -Infinity;
-        filteredData.forEach(d => {
+        fdr0Data.forEach(d => {
             if (d.negLogFDR > yMax) yMax = d.negLogFDR;
         });
         
         // Scale functions
         const xScale = (x: number) => margin.left + ((x - xMin) / (xMax - xMin)) * width;
-        const yScale = (y: number) => margin.top + height - ((y - yMin) / (yMax - yMin)) * height;
+        const yScale = (y: number) => margin.top + height - (((isFinite(y) ? y : yMax) - yMin) / (yMax - yMin) + (isFinite(y) ? 0 : 0.025)) * height;
         return { width, height, xMin, xMax, yMin, yMax, xScale, yScale };
     }
 
     function drawVolcanoPlot() {
-        if (!canvas || data.length === 0) return;
+        if (!canvas || filteredData.length === 0) return;
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -112,7 +117,7 @@
             ctx.moveTo(xPos, margin.top + height);
             ctx.lineTo(xPos, margin.top + height + 5);
             ctx.stroke();
-            ctx.fillText(x.toFixed(1), xPos, margin.top + height + 20);
+            ctx.fillText(x.toPrecision(1), xPos, margin.top + height + 20);
         }
         
         // Draw tick marks and labels for Y-axis
@@ -157,7 +162,7 @@
         ctx.setLineDash([]);
         
         // Draw data points
-        data.forEach(d => {
+        filteredData.forEach(d => {
             const pointX = xScale(d.psiDiff);
             const pointY = yScale(d.negLogFDR);
             const isSignificant = d.FDR < settings.FDRThresh && 
@@ -178,7 +183,7 @@
 
         if (selectedEvent) {
             const selectedX = xScale(selectedEvent.event.psiDiff);
-            const selectedY = yScale(selectedEvent.event.negLogFDR);
+            const selectedY = yScale(selectedEvent.event.negLogFDR); 
             ctx.beginPath();
             ctx.arc(selectedX, selectedY, 2, 0, Math.PI * 2);
             ctx.fillStyle = 'rgb(255, 255, 0)'; // Highlight selected point in yellow
@@ -234,7 +239,7 @@
     
     // Handle mouse movement for tooltips
     function handleMouseMove(e: MouseEvent) {
-        if (!canvas || data.length === 0) return;
+        if (!canvas || filteredData.length === 0) return;
         
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
@@ -250,7 +255,7 @@
         let minDist = Infinity;
         let closestPoint = null;
         
-        for (const d of data) {
+        for (const d of filteredData) {
             const pointX = xScale(d.psiDiff);
             const pointY = yScale(d.negLogFDR);
             const dist = Math.sqrt((x - pointX) ** 2 + (y - pointY) ** 2);
@@ -294,6 +299,7 @@
 
     function toggleReadCountFilter(value: boolean) {
         useReadCountFilter = value;
+        filteredData = setFilteredData();
         drawVolcanoPlot();
     }
 
@@ -303,24 +309,30 @@
             if (canvas) {
                 canvas.width = canvas.parentElement?.clientWidth || 300;
                 canvas.height = canvas.parentElement?.clientWidth || 300;
+                filteredData = setFilteredData();
                 drawVolcanoPlot();
             }
         });
         if (canvas)
             resizeObserver.observe(canvas.parentElement!);
     });
-    updatedSelectedEvent.addEventListener("update", () => {
-        if (selectedEvent)
-            previousHoveredPoint = selectedEvent.event;
-        selectedEvent = getSelectedEvent();
-        if (selectedEvent?.strain.name !== strain.name)
-            selectedEvent = null; // Reset if the selected event is not from the current strain
-        drawHoveredPoints();
-    });
+
     if (updateOnFilter === "strain")
-        strainEventEmitter.addEventListener("updateFilteredStrains", drawVolcanoPlot);
+        strainEventEmitter.addEventListener("updateFilteredStrains", () => {
+            filteredData = setFilteredData();
+            drawVolcanoPlot();
+        });
     else if (updateOnFilter === "selectedEvent")
-        updatedSelectedEvent.addEventListener("update", drawVolcanoPlot);
+        updatedSelectedEvent.addEventListener("update", () => {
+            if (selectedEvent)
+                previousHoveredPoint = selectedEvent.event;
+            selectedEvent = getSelectedEvent();
+            if (selectedEvent?.strain.name !== strain.name)
+                selectedEvent = null; // Reset if the selected event is not from the current strain
+            filteredData = setFilteredData();
+            drawVolcanoPlot();
+            drawHoveredPoints();
+        });
 </script>
 
 <div class="volcano-legend">
