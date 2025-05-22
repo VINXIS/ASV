@@ -8,6 +8,7 @@
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
     import { getFeaturesByGene, type Feature } from "./states/gtf";
+  import { onMount } from "svelte";
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
@@ -36,6 +37,7 @@
         inclusion: "#4285F4",
         skipped: "#DB4437",
         gtf: "#888888",
+        combined: "#0F9D58", 
     }
 
     function arrayToString(arr?: number[]): string {
@@ -109,8 +111,6 @@
         let root = document.querySelector(":root")!;
         const textColour = root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e";
 
-        const [x, y, width, height] = [25, 100, canvas.width - 100, 150];
-
         const exons = getSplicingExons(selectedEvent.event);
         if (!exons.length) return;
 
@@ -140,7 +140,7 @@
         for (const transcriptId in transcriptGroups) {
             if (exons.filter(exon => exon.inclusion && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
                 inclusionTranscript = transcriptId;
-            if (exons.filter(exon => !exon.inclusion && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
+            if (exons.filter(exon => !exon.inclusion && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - g.end) < 3)))
                 skippedTranscript = transcriptId;
             if (inclusionTranscript && skippedTranscript)
                 break;
@@ -159,11 +159,27 @@
         const posRange = adjustedMax - adjustedMin;
         
         // Define visual properties
-        const exonHeight = height * 0.3;
-        const yGTFPath = y + height * 0.1;
-        const yInclusionPath = y + height * 0.5;
-        const ySkippedPath = y + height * 0.9;
+        // Scale height by number of transcripts
+        const transcriptIds = Object.keys(transcriptGroups);
+        const transcriptCount = transcriptIds.length;
+
+        canvas.height = 300; // Set initial height
+
+        let [x, y, width, height] = [25, 100, canvas.width - 100, canvas.height - 150];
+
+        let exonHeight = height * 0.3 / Math.max(1, transcriptCount);
+
+        // Make canvas height dynamic based on number of transcripts
+        while (exonHeight < 10) {
+            canvas.height = canvas.height + 25;
+            height = canvas.height - 150;
+            exonHeight = height * 0.3 / Math.max(1, transcriptCount);
+        }
         
+        const pathGap = Math.min(height * 0.05, 10);
+        const yInclusionPath = y + (exonHeight + pathGap) * transcriptCount + exonHeight / 2;
+        const ySkippedPath = y + (exonHeight + pathGap) * (transcriptCount + 1) + exonHeight / 2;
+
         // Function to scale genomic position to canvas x coordinate
         const scaleX = (pos: number) => ((pos - adjustedMin) / posRange) * width + x
         
@@ -183,7 +199,7 @@
                 mouseData.y >= yInclusionPath - exonHeight/2 &&
                 mouseData.y <= yInclusionPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, colours.inclusion, `${exon.end - exon.start} nt`);
+                drawHoverInfo(exonX, exonX + exonWidth, y, ySkippedPath + exonHeight/2, colours.inclusion, `${exon.end - exon.start} nt`);
             }
         });
         
@@ -203,7 +219,7 @@
                 mouseData.y >= ySkippedPath - exonHeight/2 &&
                 mouseData.y <= ySkippedPath + exonHeight/2
             ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, colours.skipped, `${exon.end - exon.start} nt`);
+                drawHoverInfo(exonX, exonX + exonWidth, y, ySkippedPath + exonHeight/2, colours.skipped, `${exon.end - exon.start} nt`);
             }
         });
         
@@ -231,39 +247,45 @@
                 mouseData.y >= path - exonHeight/2 &&
                 mouseData.y <= path + exonHeight/2
             ) {
-                drawHoverInfo(startX, endX, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, colour, `${junction.end - junction.start} nt`);
+                drawHoverInfo(startX, endX, y, ySkippedPath + exonHeight/2, colour, `${junction.end - junction.start} nt`);
                 ctx.lineWidth = 2;
             }
         });
 
-        // Draw Exons for GTF Path
-        uniqueGenes.forEach(feature => {
-            // Only draw if within visible range
-            if (feature.end < adjustedMin || feature.start > adjustedMax) return;
+        // Draw Transcripts - each transcript gets its own row
+        transcriptIds.forEach((transcriptId, index) => {
+            const yTranscriptPath = y + exonHeight / 2 + (index * (exonHeight + pathGap));
+            const features = transcriptGroups[transcriptId];
+            
+            features.forEach(feature => {
+                // Only draw if within visible range
+                if (feature.end < adjustedMin || feature.start > adjustedMax) return;
 
-            const exonX = Math.max(scaleX(feature.start), x);
-            const exonWidth = Math.min(scaleX(feature.end), x + width) - exonX;
+                const exonX = Math.max(scaleX(feature.start), x);
+                const exonWidth = Math.min(scaleX(feature.end), x + width) - exonX;
 
-            ctx.fillStyle = colours.gtf;
-            ctx.fillRect(exonX, yGTFPath - exonHeight/2, exonWidth, exonHeight);
+                // Color code transcripts - use different colors or highlight inclusion/skipped transcripts
+                let transcriptColor = colours.gtf;
+                if (transcriptId === inclusionTranscript && transcriptId === skippedTranscript)
+                    transcriptColor = colours.combined;
+                else if (transcriptId === inclusionTranscript)
+                    transcriptColor = colours.inclusion;
+                else if (transcriptId === skippedTranscript)
+                    transcriptColor = colours.skipped;
 
-            // Write the exon number on top if there's enough space
-            if (exonWidth > 15) {
-                ctx.fillStyle = textColour;
-                ctx.font = '10px Inconsolata';
-                ctx.textAlign = 'center';
-                ctx.fillText(`E${feature.attributes["exon_number"]}`, exonX + exonWidth / 2, yGTFPath - exonHeight/2 - 5);
-            }
+                ctx.fillStyle = transcriptColor;
+                ctx.fillRect(exonX, yTranscriptPath - exonHeight/2, exonWidth, exonHeight);
 
-            if (
-                mouseData &&
-                mouseData.x >= exonX &&
-                mouseData.x <= exonX + exonWidth &&
-                mouseData.y >= yGTFPath - exonHeight/2 &&
-                mouseData.y <= yGTFPath + exonHeight/2
-            ) {
-                drawHoverInfo(exonX, exonX + exonWidth, yGTFPath - exonHeight/2, ySkippedPath + exonHeight/2, colours.gtf, `${feature.end - feature.start} nt`);
-            }
+                if (
+                    mouseData &&
+                    mouseData.x >= exonX &&
+                    mouseData.x <= exonX + exonWidth &&
+                    mouseData.y >= yTranscriptPath - exonHeight/2 &&
+                    mouseData.y <= yTranscriptPath + exonHeight/2
+                ) {
+                    drawHoverInfo(exonX, exonX + exonWidth, y, ySkippedPath + exonHeight/2, transcriptColor, `${feature.end - feature.start} nt - ${transcriptId} - E${feature.attributes["exon_number"]}`);
+                }
+            });
         });
         
         // Add labels
@@ -280,13 +302,9 @@
         
         // Optional: Add appropriate labels depending on splicing type
         ctx.fillStyle = colours.inclusion;
-        ctx.fillText(`Ψ1: ${selectedEvent.event.psi1Avg.toFixed(3)}`, width + x + 32, yInclusionPath - 7);
-        ctx.fillText(`Ψ2: ${selectedEvent.event.psi2Avg.toFixed(3)}`, width + x + 32, yInclusionPath + 7);
+        ctx.fillText(`Inclusion`, width + x + 32, yInclusionPath);
         ctx.fillStyle = colours.skipped;
-        ctx.fillText(`1-Ψ1: ${(1 - selectedEvent.event.psi1Avg).toFixed(3)}`, width + x + 38, ySkippedPath - 7);
-        ctx.fillText(`1-Ψ2: ${(1 - selectedEvent.event.psi2Avg).toFixed(3)}`, width + x + 38, ySkippedPath + 7);
-        ctx.fillStyle = colours.gtf;
-        ctx.fillText("GTF", width + x + 16, yGTFPath);
+        ctx.fillText(`Skipped`, width + x + 38, ySkippedPath);
 
         // X axis
         ctx.strokeStyle = textColour;
