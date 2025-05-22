@@ -210,22 +210,56 @@
                             Math.abs(previousHoveredPoint.psiDiff) > settings.psiDiffThresh;
             const readCountCheck = previousHoveredPoint.incCount1Avg >= settings.readCountThresh && previousHoveredPoint.incCount2Avg >= settings.readCountThresh && previousHoveredPoint.skipCount1Avg >= settings.readCountThresh && previousHoveredPoint.skipCount2Avg >= settings.readCountThresh;
            
-            let prevColor = 'rgb(150, 150, 150)'; // grey for non-significant
+            let prevColour = 'rgb(150, 150, 150)'; // grey for non-significant
             if (isSignificant && (!useReadCountFilter || readCountCheck))
-                prevColor = previousHoveredPoint.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
+                prevColour = previousHoveredPoint.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
 
             ctx.beginPath();
             ctx.arc(prevX, prevY, 3, 0, Math.PI * 2);
-            ctx.fillStyle = prevColor;
+            ctx.fillStyle = prevColour;
             ctx.fill();
+
+            const genePoints = filteredData.filter(d => d.geneName === previousHoveredPoint!.geneName);
+            genePoints.forEach(d => {
+                const pointX = xScale(d.psiDiff);
+                const pointY = yScale(d.negLogFDR);
+                if (prevX === pointX && prevY === pointY)
+                    return; // Skip the hovered point itself
+
+                const pointIsSignificant = d.FDR < settings.FDRThresh && 
+                            Math.abs(d.psiDiff) > settings.psiDiffThresh;
+                const pointReadCountCheck = d.incCount1Avg >= settings.readCountThresh && d.incCount2Avg >= settings.readCountThresh && d.skipCount1Avg >= settings.readCountThresh && d.skipCount2Avg >= settings.readCountThresh;
+
+                let pointColour = 'rgb(150, 150, 150)'; // grey for non-significant
+                if (pointIsSignificant && (!useReadCountFilter || pointReadCountCheck))
+                    pointColour = d.psiDiff > 0 ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
+
+                ctx.beginPath();
+                ctx.arc(pointX, pointY, 3, 0, Math.PI * 2);
+                ctx.fillStyle = pointColour;
+                ctx.fill();
+            });
         }
         if (hoveredPoint) {
-            const pointX = xScale(hoveredPoint.psiDiff);
-            const pointY = yScale(hoveredPoint.negLogFDR);
+            const hovX = xScale(hoveredPoint.psiDiff);
+            const hovY = yScale(hoveredPoint.negLogFDR);
             ctx.beginPath();
-            ctx.arc(pointX, pointY, 3, 0, Math.PI * 2);
+            ctx.arc(hovX, hovY, 2, 0, Math.PI * 2);
             ctx.fillStyle = 'rgb(0, 255, 0)'; // Highlight hovered point in green
             ctx.fill();
+
+            const genePoints = filteredData.filter(d => d.geneName === hoveredPoint!.geneName);
+            genePoints.forEach(d => {
+                const pointX = xScale(d.psiDiff);
+                const pointY = yScale(d.negLogFDR);
+                if (hovX === pointX && hovY === pointY)
+                    return; // Skip the hovered point itself
+
+                ctx.beginPath();
+                ctx.arc(pointX, pointY, 2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 128, 0, 1)'; // Highlight hovered point in green
+                ctx.fill();
+            });
         }
         if (selectedEvent) {
             const selectedX = xScale(selectedEvent.event.psiDiff);
