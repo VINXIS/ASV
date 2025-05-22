@@ -228,7 +228,10 @@
         
         ctx.textAlign = "left";
         ctx.font = "12px Inconsolata";
-        ctx.fillText(settings.selectedChr === "All" ? "Position (nt)" : `${settings.selectedChr} Position (nt)`, 5, 25);
+        ctx.fillText(settings.selectedChr === "All" ? "Position (nt)" : `${settings.selectedChr} Position (nt)`, 5, 30);
+
+        // Zoom level
+        ctx.fillText(`Zoom Level: ${Math.round(zoomLevel * 100) / 100}x`, canvas.width - 125, 30);
     }
 
     /// INTERACTIVITY HANDLERS ///
