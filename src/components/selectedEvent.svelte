@@ -450,7 +450,7 @@
             aria-label="Close"
             onclick={() => setSelectedEvent(null)}
         >X</button>
-        <h3 style="color: {selectedEvent.strain.colour}">{selectedEvent.event.geneName || selectedEvent.event.geneID} - {selectedEvent.event.eventType}</h3>
+        <h3 class="event-header" style="color: {selectedEvent.strain.colour}">{selectedEvent.event.geneName || selectedEvent.event.geneID} - {selectedEvent.event.eventType}</h3>
         <div class="canvas-controls">
             <button class="reset-view-button" onclick={resetView}>
                 Full Gene Context
@@ -643,15 +643,23 @@
         height: 80%;
         overflow: auto;
     }
+    
+    .event-header {
+        position: sticky;
+        top: -20px;
+        background-color: var(--background-colour);
+        padding: 10px 0;
+    }
 
     .close-button {
         position: sticky;
-        top: 0;
+        top: -10px;
         left: 100%;
         border: none;
         background: none;
         font-size: 20px;
         cursor: pointer;
+        z-index: 1000;
     }
 
     .info-divs {
