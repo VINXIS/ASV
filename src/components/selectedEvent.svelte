@@ -8,7 +8,6 @@
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
     import { getFeaturesByGene, type Feature } from "./states/gtf";
-  import { onMount } from "svelte";
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
@@ -622,14 +621,14 @@
                                 <span style="text-decoration: underline;">
                                     {#if selectedEvent.event.ID === event.event.ID && selectedEvent.strain.name === event.strain.name}
                                         <strong>{event.strain.name} (Selected)</strong>
-                                    {:else if eventID(event.event) === eventID(selectedEvent.event)}
-                                        {event.strain.name} <strong>(Same Event)</strong>
                                     {:else}
                                         {event.strain.name}
                                     {/if}
                                 </span>
                                 <ul>
-                                    
+                                    {#if eventID(event.event) === eventID(selectedEvent.event) && `${event.strain.name}_${event.event.ID}` !== `${selectedEvent.strain.name}_${selectedEvent.event.ID}`}
+                                        <li><strong>(Same Event)</strong></li>
+                                    {/if}
                                     <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
                                     <li>FDR: {Math.abs(event.event.FDR) < 0.001 && event.event.FDR !== 0 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
                                     <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
