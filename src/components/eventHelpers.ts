@@ -37,7 +37,7 @@ export function getPositionsFromData(data: Event) {
 export function getSplicingExons(data: Event): {
     start: number;
     end: number;
-    type: "junction" | "upstream" | "downstream" | "first" | "second" | "flanking" | "long" | "short" | "intron" | "target";
+    type: "junction" | "upstream" | "downstream" | "first" | "second" | "flanking" | "long" | "short" | "target";
     inclusion: boolean;
 }[] {
     const strand = data.strand;
@@ -49,10 +49,9 @@ export function getSplicingExons(data: Event): {
         // "first" and "second" are used for the exons that are part of the event
         // "flanking" is used for the exons that are not part of the event but are adjacent to the event
         // "long" and "short" are used for the exons that are part of the event
-        // "intron" is used for the intron that is part of the event
         // "target" is used for the exon that is the target of the event
         // These are dependent on the event type and strand
-        type: "junction" | "upstream" | "downstream" | "first" | "second" | "flanking" | "long" | "short" | "intron" | "target";
+        type: "junction" | "upstream" | "downstream" | "first" | "second" | "flanking" | "long" | "short" | "target";
         inclusion: boolean;
     }[] = [];
     
@@ -227,22 +226,16 @@ export function getSplicingExons(data: Event): {
             if (strand === "+") {
                 exons = [
                     { start: riData.upstreamExonStart, end: riData.upstreamExonEnd, type: "upstream", inclusion: true },
-                    { start: riData.upstreamExonEnd, end: riData.downstreamExonStart, type: "intron", inclusion: true },
+                    { start: riData.upstreamExonEnd, end: riData.downstreamExonStart, type: "junction", inclusion: true },
                     { start: riData.downstreamExonStart, end: riData.downstreamExonEnd, type: "downstream", inclusion: true }
                 ];
             } else {
                 exons = [
                     { start: riData.downstreamExonStart, end: riData.downstreamExonEnd, type: "downstream", inclusion: true },
-                    { start: riData.upstreamExonEnd, end: riData.downstreamExonStart, type: "intron", inclusion: true },
+                    { start: riData.upstreamExonEnd, end: riData.downstreamExonStart, type: "junction", inclusion: true },
                     { start: riData.upstreamExonStart, end: riData.upstreamExonEnd, type: "upstream", inclusion: true }
                 ];
             }
-            exons.push({
-                start: riData.upstreamExonEnd,
-                end: riData.downstreamExonStart,
-                type: "junction",
-                inclusion: false
-            });
             break;
     }
     

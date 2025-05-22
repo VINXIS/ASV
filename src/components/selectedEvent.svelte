@@ -135,9 +135,9 @@
         inclusionTranscript = null;
         skippedTranscript = null;
         for (const transcriptId in transcriptGroups) {
-            if (exons.filter(exon => exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
+            if (exons.filter(exon => exon.inclusion && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
                 inclusionTranscript = transcriptId;
-            if (exons.filter(exon => !exon.inclusion && exon.type !== "intron" && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
+            if (exons.filter(exon => !exon.inclusion && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
                 skippedTranscript = transcriptId;
             if (inclusionTranscript && skippedTranscript)
                 break;
