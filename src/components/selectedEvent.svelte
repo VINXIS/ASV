@@ -113,6 +113,9 @@
 
         const exons = getSplicingExons(selectedEvent.event);
         if (!exons.length) return;
+        const inclusionExons = exons.filter(exon => exon.inclusion && exon.type !== "junction");
+        const skippedExons = exons.filter(exon => (!exon.inclusion || exon.type === "upstream" || exon.type === "downstream" || exon.type === "flanking") && exon.type !== "junction"); // Exons that are not effected by the event have inclusion = true
+        const junctions = exons.filter(exon => exon.type === "junction");
 
         // Currently "gene_number" is corresponding to each transcript, it should instead correspond to their location instead
         const geneFeatures = getFeaturesByGene(selectedEvent.event.geneName || selectedEvent.event.geneID).filter(g => g.feature === "exon");
@@ -138,9 +141,9 @@
         inclusionTranscript = null;
         skippedTranscript = null;
         for (const transcriptId in transcriptGroups) {
-            if (exons.filter(exon => exon.inclusion && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
+            if (inclusionExons.every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
                 inclusionTranscript = transcriptId;
-            if (exons.filter(exon => !exon.inclusion && exon.type !== "junction").every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - g.end) < 3)))
+            if (skippedExons.every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
                 skippedTranscript = transcriptId;
             if (inclusionTranscript && skippedTranscript)
                 break;
@@ -185,7 +188,7 @@
         
         // Draw inclusion path exons (solid)
         ctx.fillStyle = colours.inclusion;
-        exons.filter(e => e.inclusion && e.type !== "junction").forEach(exon => {
+        inclusionExons.forEach(exon => {
             // Only draw if within visible range
             if (exon.end < adjustedMin || exon.start > adjustedMax) return;
 
@@ -205,7 +208,7 @@
         
         // Draw skipped path exons (solid)
         ctx.fillStyle = colours.skipped;  // Red for skipped path
-        exons.filter(e => (!e.inclusion || e.type === "upstream" || e.type === "downstream" || e.type === "flanking") && e.type !== "junction").forEach(exon => {
+        skippedExons.forEach(exon => {
             // Only draw if within visible range
             if (exon.end < adjustedMin || exon.start > adjustedMax) return;
 
@@ -225,7 +228,7 @@
         
         // Draw junctions (dashed)
         ctx.lineWidth = 2;
-        exons.filter(e => e.type === "junction").forEach(junction => {
+        junctions.forEach(junction => {
             // Only draw if within visible range
             if (junction.end < adjustedMin || junction.start > adjustedMax) return;
 
@@ -256,22 +259,22 @@
         transcriptIds.forEach((transcriptId, index) => {
             const yTranscriptPath = y + exonHeight / 2 + (index * (exonHeight + pathGap));
             const features = transcriptGroups[transcriptId];
-            
+
+            // Color code transcripts - use different colors or highlight inclusion/skipped transcripts
+            let transcriptColor = colours.gtf;
+            if (transcriptId === inclusionTranscript && transcriptId === skippedTranscript)
+                transcriptColor = colours.combined;
+            else if (transcriptId === inclusionTranscript)
+                transcriptColor = colours.inclusion;
+            else if (transcriptId === skippedTranscript)
+                transcriptColor = colours.skipped;
+
             features.forEach(feature => {
                 // Only draw if within visible range
                 if (feature.end < adjustedMin || feature.start > adjustedMax) return;
 
                 const exonX = Math.max(scaleX(feature.start), x);
                 const exonWidth = Math.min(scaleX(feature.end), x + width) - exonX;
-
-                // Color code transcripts - use different colors or highlight inclusion/skipped transcripts
-                let transcriptColor = colours.gtf;
-                if (transcriptId === inclusionTranscript && transcriptId === skippedTranscript)
-                    transcriptColor = colours.combined;
-                else if (transcriptId === inclusionTranscript)
-                    transcriptColor = colours.inclusion;
-                else if (transcriptId === skippedTranscript)
-                    transcriptColor = colours.skipped;
 
                 ctx.fillStyle = transcriptColor;
                 ctx.fillRect(exonX, yTranscriptPath - exonHeight/2, exonWidth, exonHeight);
