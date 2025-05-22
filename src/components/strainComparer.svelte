@@ -54,7 +54,7 @@
         {/if}
     {/each}
     {#if geneMapping.length > 0}
-        <h3>Upset Chart of Shared Genes With Events between Strains</h3>
+        <h3>Upset Chart of Shared Genes with Events between Strains</h3>
         <UpsetChart
             elems={geneMapping}
             updateOnFilter

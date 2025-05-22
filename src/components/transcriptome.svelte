@@ -465,6 +465,10 @@
                 ></span> {strain.name}
             </div>
         {/each}
+        Click strain to hide
+    </div>
+    <div class="legend">
+        Use mouse wheel to zoom, drag to pan
     </div>
     <canvas
         bind:this={canvas}
