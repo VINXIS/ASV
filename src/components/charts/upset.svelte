@@ -22,6 +22,11 @@
         if (!div || elems.length === 0) return;
         if (extract)
             ({ sets, combinations } = extractCombinations(elems));
+
+        // @ts-ignore
+        sets.sort((a, b) => b.elems.length - a.elems.length);
+        // @ts-ignore
+        combinations.sort((a, b) => a.elems.length - b.elems.length);
         // Check if root has light or dark mode
         let root = document.querySelector(":root")!;
         // const textColour = root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e";
