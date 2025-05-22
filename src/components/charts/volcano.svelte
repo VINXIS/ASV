@@ -28,7 +28,7 @@
         const height = canvas.height - margin.top - margin.bottom;
 
         // Find data ranges
-        const fdr0Data = filteredData.filter(d => d.FDR !== 0);
+        const fdr0Data = data.filter(d => d.FDR !== 0);
         
         // Check if there's valid data
         if (fdr0Data.length === 0) {
@@ -40,7 +40,7 @@
         
         // Find data ranges
         // Can't use Math.min and Math.max because of maximum call stack size exceeded errors
-        const psiDiffs = filteredData.map(d => d.psiDiff); // not fdr0Data for psiDiff because we want to show all points
+        const psiDiffs = data.map(d => d.psiDiff); // not fdr0Data for psiDiff because we want to show all points
         let xMin = Infinity;
         let xMax = -Infinity;
         psiDiffs.forEach(diff => {
