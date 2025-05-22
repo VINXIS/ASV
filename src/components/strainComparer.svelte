@@ -3,16 +3,18 @@
     import UpsetChart from "./charts/upset.svelte";
     import ViolinChart from "./charts/violin.svelte";
     import VolcanoChart from "./charts/volcano.svelte";
-    import { getBasicStrainInfo, getFilteredStrains, getGeneMapping, getStrainEvents, strainEventEmitter, type BasicStrainInfo, type Event } from "./states/strains";
+    import { getBasicStrainInfo, getEventMapping, getFilteredStrains, getGeneMapping, getStrainEvents, strainEventEmitter, type BasicStrainInfo, type Event } from "./states/strains";
 
     let strains: BasicStrainInfo[] = [];
     let strainViolinData: Record<string, number[]> = {};
     let strainPieData: Record<string, { A3SS: number; A5SS: number; MXE: number; RI: number; SE: number }> = {};
     let strainVolcanoData: Record<string, Event[]> = {};
     let geneMapping: { name: string; sets: string[] }[] = [];
+    let eventMapping: { name: string; sets: string[] }[] = [];
     strainEventEmitter.addEventListener("updateFilteredStrains", () => {
         strains = getBasicStrainInfo();
         geneMapping = getGeneMapping();
+        eventMapping = getEventMapping();
         const filteredStrains = getFilteredStrains();
         strainViolinData = {};
         filteredStrains.forEach(([strainName, { events }]) => {
@@ -51,10 +53,20 @@
             </div>
         {/if}
     {/each}
-	<UpsetChart
-        elems={geneMapping}
-        updateOnFilter
-    ></UpsetChart>
+    {#if geneMapping.length > 0}
+        <h3>Upset Chart of Shared Genes With Events between Strains</h3>
+        <UpsetChart
+            elems={geneMapping}
+            updateOnFilter
+        ></UpsetChart>
+    {/if}
+    {#if eventMapping.length > 0}
+        <h3>Upset Chart of Shared Events between Strains</h3>
+        <UpsetChart
+            elems={eventMapping}
+            updateOnFilter
+        ></UpsetChart>
+    {/if}
 </div>
 
 <style>

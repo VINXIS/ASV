@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getPositionsFromData, getSplicingExons } from "./eventHelpers";
+    import { eventID, getPositionsFromData, getSplicingExons } from "./eventHelpers";
     import { rootObserver } from "./rootObserver";
     import { type SEEvent, type MXEEvent, type ASSEvent, type RIEvent, eventColours, type Event } from "./states/strains";
     import PieChart from "./charts/pie.svelte";
@@ -15,6 +15,7 @@
     let skippedTranscript: string | null = null;
     let useFilter = true;
     let readCountThresh = true;
+    let sameEventOnly = false;
     let mouseData: { x: number; y: number } | null = null;
     let filteredEvents: {
         strain: {
@@ -56,8 +57,10 @@
             const limitCheck = settings.extraneousPsiLimits === false || event.event.psi1Avg >= 0.05 && event.event.psi1Avg <= 0.95;
             const FDRCheck = event.event.FDR <= settings.FDRThresh;
             const psiDiffCheck = Math.abs(event.event.psiDiff) >= settings.psiDiffThresh;
-            return chromosomeCheck && limitCheck && FDRCheck && psiDiffCheck;
+            const sameEventCheck = !sameEventOnly || eventID(event.event) === eventID(selectedEvent!.event);
+            return chromosomeCheck && limitCheck && FDRCheck && psiDiffCheck && sameEventCheck;
         }) || [];
+        filteredEvents.sort((a, b) => eventID(a.event).localeCompare(eventID(b.event)));
         eventCounts = filteredEvents.reduce((acc, event) => {
             const eventType = event.event.eventType;
             acc[eventType] = (acc[eventType] || 0) + 1;
@@ -427,6 +430,11 @@
         updateValues();
     }
 
+    function changeSameEventOnly(value: boolean) {
+        sameEventOnly = value;
+        updateValues();
+    }
+
     rootObserver(draw);
     updatedSelectedEvent.addEventListener("update", () => {
         updateValues(false);
@@ -561,13 +569,19 @@
                         style="margin-bottom: 10px;"
                         onclick={() => changeFilter(!useFilter)}
                     >
-                        {useFilter ? "Show All Events" : "Show Filtered Events (excl. Event Type)"}
+                        {useFilter ? "Disable Filter" : "Enable Filter"}
                     </button>
                     <button
                         class="toggle-filter"
                         onclick={() => changeReadCountThresh(!readCountThresh)}
                     >
-                        {readCountThresh ? "Show All Read Counts" : "Enforce Read Count Threshold"}
+                        {readCountThresh ? "Disable Read Count Threshold" : "Enable Read Count Threshold"}
+                    </button>
+                    <button
+                        class="toggle-filter"
+                        onclick={() => changeSameEventOnly(!sameEventOnly)}
+                    >
+                        {sameEventOnly ? "Disable Same Event Filter" : "Enable Same Event Filter"}
                     </button>
                     <ul>
                         {#each filteredEvents as event}
@@ -585,8 +599,10 @@
                                 }}
                             >
                                 <span style="text-decoration: underline;">
-                                    {#if selectedEvent.event.ID === event.event.ID}
+                                    {#if selectedEvent.event.ID === event.event.ID && selectedEvent.strain.name === event.strain.name}
                                         <strong>{event.strain.name} (Selected)</strong>
+                                    {:else if eventID(event.event) === eventID(selectedEvent.event)}
+                                        {event.strain.name} <strong>(Same Event)</strong>
                                     {:else}
                                         {event.strain.name}
                                     {/if}

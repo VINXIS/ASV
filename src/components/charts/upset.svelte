@@ -64,11 +64,7 @@
     class="upset"
     bind:this={div}
     style="width: 100%; height: 100%;"
->
-    {#if elems.length > 0}
-        Upset Chart of Overlap between Genes Affected by Events Between Strains
-    {/if}
-</div>
+></div>
 
 <style>
     .upset {

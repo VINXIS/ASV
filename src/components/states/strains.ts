@@ -1,3 +1,4 @@
+import { eventID, getSplicingExons } from "../eventHelpers";
 import { settings } from "./settings";
 
 export const eventTypes = [
@@ -219,8 +220,12 @@ export function getChromosomeList() {
 /// GENE MAPPING ///
 // For each gene, get the array of strains that have events for it.
 let geneMapping: { name: string; sets: string[] }[] = [];
+let eventMapping: { name: string; sets: string[] }[] = [];
 export function getGeneMapping() {
     return geneMapping;
+}
+export function getEventMapping() {
+    return eventMapping;
 }
 
 /// FILTERS ///
@@ -250,6 +255,7 @@ export function updateSelectFilteredStrains() {
 export function updateFilteredStrains() {
     filteredStrains = {};
     const geneObj: Record<string, string[]> = {};
+    const eventObj: Record<string, string[]> = {};
     for (const [strainName, strainData] of Object.entries(selectFilteredStrains)) {
         filteredStrains[strainName] = { colour: strainData.colour, events: [] };
         for (const event of strainData.events) {
@@ -258,6 +264,11 @@ export function updateFilteredStrains() {
             const psiDiffCheck = Math.abs(event.psiDiff) >= settings.psiDiffThresh;
             if (readCountCheck && FDRCheck && psiDiffCheck) {
                 filteredStrains[strainName].events.push(event);
+                const eventIDStr = eventID(event);
+                if (!eventObj[eventIDStr])
+                    eventObj[eventIDStr] = [];
+                if (!eventObj[eventIDStr].includes(strainName))
+                    eventObj[eventIDStr].push(strainName);
                 if (!geneObj[event.geneID])
                     geneObj[event.geneID] = [];
                 if (!geneObj[event.geneID].includes(strainName))
@@ -266,6 +277,7 @@ export function updateFilteredStrains() {
         }
     }
     geneMapping = Object.entries(geneObj).map(([name, sets]) => ({ name, sets }));
+    eventMapping = Object.entries(eventObj).map(([name, sets]) => ({ name, sets }));
     strainEventEmitter.dispatchEvent(new Event("updateFilteredStrains"));
 };
 export function getFilteredStrains() {

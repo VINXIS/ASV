@@ -34,6 +34,11 @@ export function getPositionsFromData(data: Event) {
     return { start: startPos, end: endPos };
 }
 
+export function eventID(event: Event) {
+    const positions = getSplicingExons(event);
+    return `${event.geneName}_${event.eventType}_${event.chr}_${event.strand}_${positions.map(pos => `${pos.start}_${pos.end}`).join("_")}`;
+}
+
 export function getSplicingExons(data: Event): {
     start: number;
     end: number;
