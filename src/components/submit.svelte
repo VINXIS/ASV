@@ -82,11 +82,11 @@
                     case "SE":
                         specificEvent = {
                             ...baseEvent,
-                            exonStart: findNumberInRow(row, headerMapping, "exonStart_0base"),
+                            exonStart: findNumberInRow(row, headerMapping, "exonStart_0base") + 1,
                             exonEnd: findNumberInRow(row, headerMapping, "exonEnd"),
-                            upstreamExonStart: findNumberInRow(row, headerMapping, "upstreamES"),
+                            upstreamExonStart: findNumberInRow(row, headerMapping, "upstreamES") + 1,
                             upstreamExonEnd: findNumberInRow(row, headerMapping, "upstreamEE"),
-                            downstreamExonStart: findNumberInRow(row, headerMapping, "downstreamES"),
+                            downstreamExonStart: findNumberInRow(row, headerMapping, "downstreamES") + 1,
                             downstreamExonEnd: findNumberInRow(row, headerMapping, "downstreamEE"),
                             upstreamToTargetCount: parseNumberArray(findValueInRow(row, headerMapping, "upstream_to_target_count")),
                             targetCount: parseNumberArray(findValueInRow(row, headerMapping, "target_count")),
@@ -97,13 +97,13 @@
                     case "MXE":
                         specificEvent = {
                             ...baseEvent,
-                            exon1Start: findNumberInRow(row, headerMapping, "1stExonStart_0base"),
+                            exon1Start: findNumberInRow(row, headerMapping, "1stExonStart_0base") + 1,
                             exon1End: findNumberInRow(row, headerMapping, "1stExonEnd"),
-                            exon2Start: findNumberInRow(row, headerMapping, "2ndExonStart_0base"),
+                            exon2Start: findNumberInRow(row, headerMapping, "2ndExonStart_0base") + 1,
                             exon2End: findNumberInRow(row, headerMapping, "2ndExonEnd"),
-                            upstreamExonStart: findNumberInRow(row, headerMapping, "upstreamES"),
+                            upstreamExonStart: findNumberInRow(row, headerMapping, "upstreamES") + 1,
                             upstreamExonEnd: findNumberInRow(row, headerMapping, "upstreamEE"),
-                            downstreamExonStart: findNumberInRow(row, headerMapping, "downstreamES"),
+                            downstreamExonStart: findNumberInRow(row, headerMapping, "downstreamES") + 1,
                             downstreamExonEnd: findNumberInRow(row, headerMapping, "downstreamEE"),
                             upstreamToFirstCount: parseNumberArray(findValueInRow(row, headerMapping, "upstream_to_first_count")),
                             firstToDownstreamCount: parseNumberArray(findValueInRow(row, headerMapping, "first_to_downstream_count")),
@@ -118,11 +118,11 @@
                     case "A5SS":
                         specificEvent = {
                             ...baseEvent,
-                            longExonStart: findNumberInRow(row, headerMapping, "longExonStart_0base"),
+                            longExonStart: findNumberInRow(row, headerMapping, "longExonStart_0base") + 1,
                             longExonEnd: findNumberInRow(row, headerMapping, "longExonEnd"),
-                            shortExonStart: findNumberInRow(row, headerMapping, "shortES"),
+                            shortExonStart: findNumberInRow(row, headerMapping, "shortES") + 1,
                             shortExonEnd: findNumberInRow(row, headerMapping, "shortEE"),
-                            flankingExonStart: findNumberInRow(row, headerMapping, "flankingES"),
+                            flankingExonStart: findNumberInRow(row, headerMapping, "flankingES") + 1,
                             flankingExonEnd: findNumberInRow(row, headerMapping, "flankingEE"),
                             acrossShortBoundaryCount: parseNumberArray(findValueInRow(row, headerMapping, "across_short_boundary_count")),
                             longToFlankingCount: parseNumberArray(findValueInRow(row, headerMapping, "long_to_flanking_count")),
@@ -134,11 +134,11 @@
                     case "RI":
                         specificEvent = {
                             ...baseEvent,
-                            riExonStart: findNumberInRow(row, headerMapping, "riExonStart_0base"),
+                            riExonStart: findNumberInRow(row, headerMapping, "riExonStart_0base") + 1,
                             riExonEnd: findNumberInRow(row, headerMapping, "riExonEnd"),
-                            upstreamExonStart: findNumberInRow(row, headerMapping, "upstreamES"),
+                            upstreamExonStart: findNumberInRow(row, headerMapping, "upstreamES") + 1,
                             upstreamExonEnd: findNumberInRow(row, headerMapping, "upstreamEE"),
-                            downstreamExonStart: findNumberInRow(row, headerMapping, "downstreamES"),
+                            downstreamExonStart: findNumberInRow(row, headerMapping, "downstreamES") + 1,
                             downstreamExonEnd: findNumberInRow(row, headerMapping, "downstreamEE"),
                             upstreamToIntronCount: parseNumberArray(findValueInRow(row, headerMapping, "upstream_to_intron_count")),
                             intronToDownstreamCount: parseNumberArray(findValueInRow(row, headerMapping, "intron_to_downstream_count")),
