@@ -104,7 +104,6 @@
 
         // Reset canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.setLineDash([5, 3]);
 
         // Check if root has light or dark mode
         let root = document.querySelector(":root")!;
@@ -169,18 +168,21 @@
 
         let [x, y, width, height] = [25, 100, canvas.width - 100, canvas.height - 150];
 
-        let exonHeight = height * 0.3 / Math.max(1, transcriptCount);
+        let exonHeight = height * 0.3 / transcriptCount;
 
         // Make canvas height dynamic based on number of transcripts
         while (exonHeight < 10) {
             canvas.height = canvas.height + 25;
             height = canvas.height - 150;
-            exonHeight = height * 0.3 / Math.max(1, transcriptCount);
+            exonHeight = height * 0.3 / transcriptCount;
         }
         
         const pathGap = Math.min(height * 0.05, 10);
         const yInclusionPath = y + (exonHeight + pathGap) * transcriptCount + exonHeight / 2;
         const ySkippedPath = y + (exonHeight + pathGap) * (transcriptCount + 1) + exonHeight / 2;
+
+        // Scale dash size to the amount of transcripts
+        ctx.setLineDash([5, 3 * Math.sqrt(transcriptCount)]);
 
         // Function to scale genomic position to canvas x coordinate
         const scaleX = (pos: number) => ((pos - adjustedMin) / posRange) * width + x
