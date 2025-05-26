@@ -1,4 +1,4 @@
-import { eventID, getSplicingExons } from "../eventHelpers";
+import { eventID } from "../eventHelpers";
 import { settings } from "./settings";
 
 export const eventTypes = [
@@ -154,7 +154,10 @@ export interface BasicStrainInfo {
 
 export const strainEventEmitter = new EventTarget();
 
-export let strains: Strain[] = [];
+let strains: Strain[] = [];
+export function getStrains() {
+    return strains;
+}
 export function resetStrains() {
     strains = [];
     updateSelectFilteredStrains();
