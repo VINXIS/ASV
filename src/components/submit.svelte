@@ -1,15 +1,17 @@
 <script lang="ts">
-    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, setStrains, strains } from "./states/strains";
+    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, setStrains, eventTypes, getStrains, getStrainLength, getBasicStrainInfo } from "./states/strains";
     import { average, parseNumberArray } from "../../utils/numbers";
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { readFileAsync } from "../../utils/files";
     import { colourScale } from "../../utils/colour";
     import { parseGTF } from "./states/gtf";
+    import { eventToCSV, eventTypeToCSVHeader } from "./eventHelpers";
 
     let folderInput: HTMLInputElement;
     let isLoading = false;
     let errorMessage = "";
     let successMessage = "";
+    let strainCount = getStrainLength();
     
     const filePattern = /\.(MATS\.JCEC\.txt)$/i;
 
@@ -174,6 +176,7 @@
             }
 
             let gtfParsingPromise: Promise<void> | null = null;
+            const strains = getStrains();
             if (strains.length === 0) {
                 // Don't await here - let it run in parallel
                 gtfParsingPromise = parseGTF();
@@ -266,7 +269,8 @@
                 errorMessage = `Error processing files: ${e.message}`;
             }
         }
-        
+
+        strainCount = getStrainLength();
         isLoading = false;
     }
 
@@ -296,11 +300,31 @@
         // Fallback
         return "Unknown_Strain";
     }
+
+    function exportCSV() {
+        getStrains().forEach(strain => {
+            eventTypes.forEach(eventType => {
+                const events = strain[eventType];
+                if (events.length === 0) return;
+
+                const csvHeaders = eventTypeToCSVHeader(eventType);
+                const csvContent = events.map(eventToCSV).join("\n");
+
+                const blob = new Blob([`${csvHeaders}\n${csvContent}`], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${strain.name}_${eventType}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        });
+    }
 </script>
 
 <div class="rmats-uploader">
 
-    {#if strains.length === 0}
+    {#if strainCount === 0}
         <h2>Upload rMATS Data</h2>
         <div class="upload-option">
             <h3>Upload folder</h3>
@@ -330,6 +354,7 @@
                 on:change={handleFolderUpload}
             />
             <button on:click={() => folderInput.click()}>Add Folder</button>
+            <button on:click={exportCSV}>Export CSV files</button>
         </div>
     {/if}
     
@@ -352,10 +377,10 @@
         </div>
     {/if}
 
-    {#if strains.length > 0}
+    {#if strainCount > 0}
         <h3>Loaded Strains:</h3>
         <ul>
-            {#each strains as strain}
+            {#each getBasicStrainInfo() as strain}
                 {#if strain.visible}
                     <li>{strain.name}</li>
                 {:else}

@@ -1,4 +1,5 @@
-import type { ASSEvent, Event, MXEEvent, RIEvent, SEEvent } from "./states/strains";
+import { arrayToString } from "../../utils/tables";
+import type { ASSEvent, Event, EventType, MXEEvent, RIEvent, SEEvent } from "./states/strains";
 
 export function getPositionsFromData(data: Event) {
     let startPos = Infinity;
@@ -251,4 +252,199 @@ export function getSplicingExons(data: Event): {
         isFinite(exon.start) && 
         isFinite(exon.end)
     );
+}
+
+export function eventTypeToCSVHeader(eventType: EventType): string {
+    const sharedColumns = [
+        "ID",
+        "Gene Name",
+        "Chromosome",
+        "Strand",
+        "Inclusion Count 1",
+        "Skipping Count 1",
+        "Inclusion Count 2",
+        "Skipping Count 2",
+        "Inclusion Form Length",
+        "Skipping Form Length",
+        "p-value",
+        "FDR",
+        "PSI 1",
+        "PSI 2",
+        "PSI Difference"
+    ];
+
+    let specificColumns: string[] = [];
+    switch (eventType) {
+        case "SE":
+            specificColumns = [
+                "Exon Start",
+                "Exon End",
+                "Upstream Exon Start",
+                "Upstream Exon End",
+                "Downstream Exon Start",
+                "Downstream Exon End",
+                "Upstream to Target Count",
+                "Target to Downstream Count",
+                "Target Count",
+                "Upstream to Downstream Count"
+            ];
+            break;
+        case "MXE":
+            specificColumns = [
+                "Exon 1 Start",
+                "Exon 1 End",
+                "Exon 2 Start",
+                "Exon 2 End",
+                "Upstream Exon Start",
+                "Upstream Exon End",
+                "Downstream Exon Start",
+                "Downstream Exon End",
+                "Upstream to First Count",
+                "First to Downstream Count",
+                "First Count",
+                "Upstream to Second Count",
+                "Second to Downstream Count",
+                "Second Count"
+            ];
+            break;
+        case "A3SS":
+        case "A5SS":
+            specificColumns = [
+                "Long Exon Start",
+                "Long Exon End",
+                "Short Exon Start",
+                "Short Exon End",
+                "Flanking Exon Start",
+                "Flanking Exon End",
+                "Across Short Boundary Count",
+                "Long to Flanking Count",
+                "Exclusive to Long Count",
+                "Short to Flanking Count"
+            ];
+            break;
+        case "RI":
+            specificColumns = [
+                "RI Exon Start",
+                "RI Exon End",
+                "Upstream Exon Start",
+                "Upstream Exon End",
+                "Downstream Exon Start",
+                "Downstream Exon End",
+                "Upstream to Intron Count",
+                "Intron to Downstream Count",
+                "Intron Count",
+                "Upstream to Downstream Count"
+            ];
+            break;
+        default:
+            throw new Error(`Unknown event type: ${eventType}`);
+    }
+    // Combine shared and specific columns
+    const allColumns = [...sharedColumns, ...specificColumns];
+    // Join all columns with tab separator
+    return allColumns.join(",");
+}
+
+export function eventToCSV(event: Event): string {
+    const positions = getSplicingExons(event);
+    const eventType = event.eventType;
+    const geneName = event.geneName;
+    const chr = event.chr;
+    const strand = event.strand;
+    const id = eventID(event);
+    
+    // Shared columns
+    const sharedColumns = [
+        id,
+        geneName,
+        chr,
+        strand,
+        event.incCount1,
+        event.skipCount1,
+        event.incCount2,
+        event.skipCount2,
+        event.incFormLen,
+        event.skipFormLen,
+        event.pVal,
+        event.FDR,
+        event.psi1,
+        event.psi2,
+        event.psiDiff,
+    ];
+    
+    // Event specific columns
+    let specificColumns: string[] = [];
+    switch (eventType) {
+        case "SE":
+            const seData = event as SEEvent;
+            specificColumns = [
+                seData.exonStart.toString(),
+                seData.exonEnd.toString(),
+                seData.upstreamExonStart.toString(),
+                seData.upstreamExonEnd.toString(),
+                seData.downstreamExonStart.toString(),
+                seData.downstreamExonEnd.toString(),
+                arrayToString(seData.upstreamToTargetCount),
+                arrayToString(seData.targetToDownstreamCount),
+                arrayToString(seData.targetCount),
+                arrayToString(seData.upstreamToDownstreamCount)
+            ];
+            break;
+        case "MXE":
+            const mxeData = event as MXEEvent;
+            specificColumns = [
+                mxeData.exon1Start.toString(),
+                mxeData.exon1End.toString(),
+                mxeData.exon2Start.toString(),
+                mxeData.exon2End.toString(),
+                mxeData.upstreamExonStart.toString(),
+                mxeData.upstreamExonEnd.toString(),
+                mxeData.downstreamExonStart.toString(),
+                mxeData.downstreamExonEnd.toString(),
+                arrayToString(mxeData.upstreamToFirstCount),
+                arrayToString(mxeData.firstToDownstreamCount),
+                arrayToString(mxeData.firstCount),
+                arrayToString(mxeData.upstreamToSecondCount),
+                arrayToString(mxeData.secondToDownstreamCount),
+                arrayToString(mxeData.secondCount)
+            ];
+            break;
+        case "A3SS":
+        case "A5SS":
+            const assData = event as ASSEvent;
+            specificColumns = [
+                assData.longExonStart.toString(),
+                assData.longExonEnd.toString(),
+                assData.shortExonStart.toString(),
+                assData.shortExonEnd.toString(),
+                assData.flankingExonStart.toString(),
+                assData.flankingExonEnd.toString(),
+                arrayToString(assData.acrossShortBoundaryCount),
+                arrayToString(assData.longToFlankingCount),
+                arrayToString(assData.exclusiveToLongCount),
+                arrayToString(assData.shortToFlankingCount)
+            ];
+            break;
+        case "RI":
+            const riData = event as RIEvent;
+            specificColumns = [
+                riData.riExonStart.toString(),
+                riData.riExonEnd.toString(),
+                riData.upstreamExonStart.toString(),
+                riData.upstreamExonEnd.toString(),
+                riData.downstreamExonStart.toString(),
+                riData.downstreamExonEnd.toString(),
+                arrayToString(riData.upstreamToIntronCount),
+                arrayToString(riData.intronToDownstreamCount),
+                arrayToString(riData.intronCount),
+                arrayToString(riData.upstreamToDownstreamCount)
+            ];
+            break;
+        default:
+            throw new Error(`Unknown event type: ${eventType}`);
+    }
+    // Combine shared and specific columns
+    const allColumns = [...sharedColumns, ...specificColumns];
+    // Join all columns with tab separator
+    return allColumns.join(",");
 }
