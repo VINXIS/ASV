@@ -24,3 +24,8 @@ export function findNumberInRow(row: string[], headerMapping: Record<string, num
     }
     return value;
 }
+
+export function arrayToString(arr?: number[]): string {
+    if (!arr) return "N/A";
+    return arr.length > 0 ? arr.join(",") : "N/A";
+}

@@ -8,6 +8,7 @@
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
     import { getFeaturesByGene, type Feature } from "./states/gtf";
+  import { arrayToString } from "../../utils/tables";
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
@@ -37,11 +38,6 @@
         skipped: "#DB4437",
         gtf: "#888888",
         combined: "#0F9D58", 
-    }
-
-    function arrayToString(arr?: number[]): string {
-        if (!arr) return "N/A";
-        return arr.length > 0 ? arr.join(",") : "N/A";
     }
 
     function updateValues(mustDraw = true) {
