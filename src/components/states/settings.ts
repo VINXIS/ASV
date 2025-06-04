@@ -1,6 +1,7 @@
 import {type EventType } from "./strains";
 
 export const settings: {
+    selectedSpecies: string;
     selectedChr: string;
     selectedEventType: "All" | EventType;
 
@@ -9,6 +10,7 @@ export const settings: {
     psiDiffThresh: number;
     extraneousPsiLimits: boolean;
 } = {
+    selectedSpecies: "human",
     selectedChr: "All",
     selectedEventType: "All",
 

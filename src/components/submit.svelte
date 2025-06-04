@@ -4,7 +4,6 @@
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { readFileAsync } from "../../utils/files";
     import { colourScale } from "../../utils/colour";
-    import { parseGTF } from "./states/gtf";
     import { eventToCSV, eventTypeToCSVHeader } from "./eventHelpers";
 
     let folderInput: HTMLInputElement;
@@ -175,12 +174,7 @@
                 return;
             }
 
-            let gtfParsingPromise: Promise<void> | null = null;
             const strains = getStrains();
-            if (strains.length === 0) {
-                // Don't await here - let it run in parallel
-                gtfParsingPromise = parseGTF();
-            }
             
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
@@ -249,15 +243,6 @@
             totalStrains.forEach((strain, i) => {
                 strain.colour = colourScale[i % colourScale.length];
             });
-
-            // Now wait for GTF parsing to finish if it was started
-            if (gtfParsingPromise) {
-                try {
-                    await gtfParsingPromise;
-                } catch (error) {
-                    console.error("GTF parsing had an error, but continuing with strain processing:", error);
-                }
-            }
             
             setStrains(totalStrains);
 

@@ -1,8 +1,11 @@
 <script lang="ts">
-  import { setSelectedEvent } from "./states/selectedEvent";
+  import { onMount } from "svelte";
+    import { getSpeciesList, type EnsemblSpecies } from "./states/ensembl";
+    import { setSelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
     import { getChromosomeList, getFilteredStrains, getStrainLength, strainEventEmitter, updateFilteredStrains, updateSelectFilteredStrains, type Event } from "./states/strains";
 
+    let speciesList: EnsemblSpecies[] = [];
     let geneSearch = "";
     let results: {
         event: Event;
@@ -32,6 +35,7 @@
     });
     
     function resetSettings() {
+        settings.selectedSpecies = "human";
         settings.selectedChr = "All";
         settings.selectedEventType = "All";
 
@@ -77,6 +81,11 @@
         results = [];
     }
 
+    onMount(async () => {
+        speciesList = await getSpeciesList();
+        speciesList.sort((a, b) => a.display_name.localeCompare(b.display_name));
+    })
+
 </script>
 
 {#if existingStrains}
@@ -113,6 +122,20 @@
                 >Select random gene</button>
             </div>
         {/if}
+
+        <div class="control-group">
+            <label for="species">Species:</label>
+            <select
+                id="species"
+                bind:value={settings.selectedSpecies}
+                onchange={() => {}}
+            >
+                {#each speciesList as species}
+                    <option value={species.common_name}>{species.display_name} ({species.name}/{species.assembly})</option>
+                {/each}
+            </select>  
+        </div>
+
         <div class="control-group">
             <label for="splicing-type">Alternative Splicing Type:</label>
             <select

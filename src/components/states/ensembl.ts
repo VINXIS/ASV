@@ -1,0 +1,149 @@
+import { settings } from "./settings";
+
+export interface EnsemblSpecies {
+    name: string;
+    display_name: string;
+    common_name: string;
+    assembly: string;
+}
+
+export interface SymbolLookup {
+    species: string;
+    source: string;
+    id: string;
+    Transcript: Transcript[];
+    db_type: string;
+    object_type: string;
+    seq_region_name: string;
+    display_name: string;
+    version: number;
+    strand: number;
+    logic_name: string;
+    biotype: string;
+    canonical_transcript: string;
+    description: string;
+    assembly_name: string;
+    start: number;
+    end: number;
+}
+
+export interface Transcript {
+    gencode_primary: number;
+    biotype: string;
+    logic_name: string;
+    strand: number;
+    end: number;
+    Exon: Exon[];
+    start: number;
+    assembly_name: string;
+    length: number;
+    db_type: string;
+    object_type: string;
+    id: string;
+    species: string;
+    source: string;
+    version: number;
+    Translation?: Translation;
+    Parent: string;
+    is_canonical: number;
+    display_name: string;
+    seq_region_name: string;
+}
+
+export interface Exon {
+    end: number;
+    version: number;
+    start: number;
+    assembly_name: string;
+    seq_region_name: string;
+    object_type: string;
+    db_type: string;
+    id: string;
+    strand: number;
+    species: string;
+}
+
+export interface Translation {
+    version: number;
+    end: number;
+    start: number;
+    Parent: string;
+    length: number;
+    object_type: string;
+    db_type: string;
+    id: string;
+    species: string;
+}
+  
+
+function getReq<T>(url: string) {
+    return fetch(url)
+    .then((response) => {
+        if (!response.ok)
+            throw new Error(`HTTP error! status: ${response.status}\n${response.statusText}\nURL: ${url}`);
+        return response.json() as Promise<T>;
+    });
+}
+
+function getEnsemblReq<T>(url: string): Promise<T> {
+    const baseURL = 'https://rest.ensembl.org/';
+    return getReq<T>(baseURL + url);
+}
+
+export function getSequenceRegion(
+    chromosome: string,
+    start: number,
+    end: number
+): Promise<string> {
+    const urlPath = 'sequence/region';
+
+    const chromosomeFormatted = chromosome.replace('chr', '');
+    const url = `${urlPath}/${settings.selectedSpecies}/${chromosomeFormatted}:${start}-${end}?content-type=application/json`;
+    return getEnsemblReq<{ seq: string } | { error: string }>(url)
+    .then((data) => {
+        if ('seq' in data)
+            return data.seq;
+        else if ('error' in data)
+            throw new Error(data.error);
+        else
+            throw new Error('Unexpected response format');
+    })
+    .catch((error) => {
+        console.error('Error fetching sequence region:', error);
+        throw error;
+    });
+}
+
+export function getGeneInfo(geneId: string): Promise<SymbolLookup> {
+    const urlPath = 'lookup/symbol';
+    const url = `${urlPath}/${settings.selectedSpecies}/${geneId}?expand=1;content-type=application/json`;
+
+    return getEnsemblReq<SymbolLookup | { error: string }>(url)
+    .then((data) => {
+        if ('error' in data)
+            throw new Error(data.error);
+        else if ('species' in data && 'id' in data)
+            return data as SymbolLookup;
+        else
+            throw new Error('Unexpected response format');
+    })
+    .catch((error) => {
+        console.error('Error fetching gene info:', error);
+        throw error;
+    });
+}
+
+export function getSpeciesList(): Promise<EnsemblSpecies[]> {
+    const urlPath = 'info/species?content-type=application/json';
+    return getEnsemblReq<{ species: EnsemblSpecies[] }>(urlPath)
+    .then((data) => {
+        if (Array.isArray(data.species))
+            return data.species;
+        else
+            throw new Error('Unexpected response format');
+    })
+    .catch((error) => {
+        console.error('Error fetching species list:', error);
+        throw error;
+    });
+}

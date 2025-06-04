@@ -7,13 +7,18 @@
     import VolcanoChart from "./charts/volcano.svelte";
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
-    import { getFeaturesByGene, type Feature } from "./states/gtf";
-  import { arrayToString } from "../../utils/tables";
+    import { arrayToString } from "../../utils/tables";
+    import { getGeneInfo, getSequenceRegion, type Exon, type SymbolLookup, type Transcript } from "./states/ensembl";
+    import { getTooltipHTML, setTooltipHTML } from "./states/tooltip";
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
-    let inclusionTranscript: string | null = null;
-    let skippedTranscript: string | null = null;
+    let currGeneName: string | null = null;
+    let geneInfo: SymbolLookup | null = null;
+    let inclusionTranscripts: string[] = [];
+    let skippedTranscripts: string[] = [];
+    let rnaSeq: string | null = null;
+    let significance: "Upregulated" | "Downregulated" | "Not Significant" | null = null;
     let useFilter = true;
     let readCountThresh = true;
     let sameEventOnly = false;
@@ -26,6 +31,7 @@
         event: Event;
     }[] = [];
     let eventCounts: Record<string, number> = {};
+    let loading = false;
 
     // Zoom variables
     let zoomLevel = 1;
@@ -37,13 +43,44 @@
         inclusion: "#4285F4",
         skipped: "#DB4437",
         gtf: "#888888",
+        canonical: "#F4B400",
         combined: "#0F9D58", 
     }
 
-    function updateValues(mustDraw = true) {
+    async function updateValues(mustDraw = true) {
+        loading = true;
         selectedEvent = getSelectedEvent();
         if (!selectedEvent)
             return;
+
+        significance = null;
+        if (
+            selectedEvent.event.incCount1Avg >= settings.readCountThresh && 
+            selectedEvent.event.incCount2Avg >= settings.readCountThresh && 
+            selectedEvent.event.skipCount1Avg >= settings.readCountThresh && 
+            selectedEvent.event.skipCount2Avg >= settings.readCountThresh &&
+            selectedEvent.event.FDR <= settings.FDRThresh
+        )
+            significance = selectedEvent.event.psiDiff > settings.psiDiffThresh ? "Upregulated" : selectedEvent.event.psiDiff < -settings.psiDiffThresh ? "Downregulated" : "Not Significant";
+        else
+            significance = "Not Significant";    
+
+        if (currGeneName !== selectedEvent.event.geneName) {
+            geneInfo = null;
+            rnaSeq = null;
+            try {
+                const genePos = getPositionsFromData(selectedEvent.event);
+                [geneInfo, rnaSeq] = await Promise.all([
+                    getGeneInfo(selectedEvent.event.geneName),
+                    getSequenceRegion(selectedEvent.event.chr, genePos.start, genePos.end),
+                ]);
+            } catch (e) {
+                console.error("Failed to fetch gene info or RNA sequence:", e);
+                rnaSeq = null;
+                geneInfo = null;
+            }
+            currGeneName = selectedEvent.event.geneName;
+        }
         filteredEvents = selectedEvent.geneEvents.filter(event => {
             const readCountCheck = event.event.incCount1Avg >= settings.readCountThresh && event.event.incCount2Avg >= settings.readCountThresh && event.event.skipCount1Avg >= settings.readCountThresh && event.event.skipCount2Avg >= settings.readCountThresh;
             if (readCountThresh && !readCountCheck)
@@ -63,6 +100,7 @@
             acc[eventType] = (acc[eventType] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
+        loading = false;
         if (mustDraw)
             draw();
     }
@@ -91,7 +129,7 @@
 
     function draw() {
         const selectedEvent = getSelectedEvent();
-        if (!canvas || !selectedEvent) {
+        if (!canvas) {
             requestAnimationFrame(draw);
             return;
         }
@@ -100,6 +138,11 @@
 
         // Reset canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!selectedEvent || !geneInfo) {
+            requestAnimationFrame(draw);
+            return;
+        }
 
         // Check if root has light or dark mode
         let root = document.querySelector(":root")!;
@@ -112,35 +155,46 @@
         const junctions = exons.filter(exon => exon.type === "junction");
 
         // Currently "gene_number" is corresponding to each transcript, it should instead correspond to their location instead
-        const geneFeatures = getFeaturesByGene(selectedEvent.event.geneName || selectedEvent.event.geneID).filter(g => g.feature === "exon");
         // Get unique genes from start/end positions
-        let uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => Math.abs(t.start - g.start) < 3 && Math.abs(t.end - g.end) < 3));
+        const transcripts = geneInfo.Transcript;
+        let uniqueGenes: (Exon & { exon_number?: number })[] = transcripts.flatMap(transcript => transcript.Exon).filter((g, index, self) => index === self.findIndex(t => t.start === g.start && t.end === g.end));
         uniqueGenes.sort((a, b) => a.start - b.start);
         uniqueGenes = uniqueGenes.map((g, index) => ({
             ...g,
-            attributes: {
-                ...g.attributes,
-                exon_number: g.strand === '+' ? index + 1 : uniqueGenes.length - index // Assign exon number based on strand direction
-            }
+            exon_number: g.strand === 1 ? index + 1 : uniqueGenes.length - index // Assign exon number based on strand direction
         }));
-        const transcriptGroups = uniqueGenes.reduce((acc, feature) => {
-            const transcriptId = feature.attributes["transcript_id"];
-            if (!acc[transcriptId])
-                acc[transcriptId] = [];
-            acc[transcriptId].push(feature);
-            return acc;
-        }, {} as Record<string, Feature[]>);
 
-        // See which transcript the selected event belongs to
-        inclusionTranscript = null;
-        skippedTranscript = null;
-        for (const transcriptId in transcriptGroups) {
-            if (inclusionExons.every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
-                inclusionTranscript = transcriptId;
-            if (skippedExons.every(exon => transcriptGroups[transcriptId].some(g => Math.abs(g.start - exon.start) < 3 && Math.abs(g.end - exon.end) < 3)))
-                skippedTranscript = transcriptId;
-            if (inclusionTranscript && skippedTranscript)
-                break;
+        // See which transcript the selected event belongs to, ensuring that there are no exons between the ones noted in inclusionEcons and skippedExons
+        inclusionTranscripts = [];
+        skippedTranscripts = [];
+        for (const transcript of transcripts) {
+            let isInclusion = inclusionExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
+            let isSkipped = skippedExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
+            const minInclusionPos = Math.min(...inclusionExons.map(e => e.start));
+            const maxInclusionPos = Math.max(...inclusionExons.map(e => e.end));
+            const minSkippedPos = Math.min(...skippedExons.map(e => e.start));
+            const maxSkippedPos = Math.max(...skippedExons.map(e => e.end));
+
+            // Check if there are any exons in between inclusion and skipped exons
+            if (transcript.Exon.some(tExon => {
+                return (
+                    (tExon.start >= minInclusionPos && tExon.start <= maxInclusionPos) || 
+                    (tExon.end >= minInclusionPos && tExon.end <= maxInclusionPos)
+                ) && !inclusionExons.some(e => e.start === tExon.start && e.end === tExon.end); 
+            }))
+                isInclusion = false;
+            if (isInclusion)
+                inclusionTranscripts.push(`${transcript.id}.${transcript.version}`);
+
+            if (transcript.Exon.some(tExon => {
+                return (
+                    (tExon.start >= minSkippedPos && tExon.start <= maxSkippedPos) || 
+                    (tExon.end >= minSkippedPos && tExon.end <= maxSkippedPos)
+                ) && !skippedExons.some(e => e.start === tExon.start && e.end === tExon.end); 
+            }))
+                isSkipped = false;
+            if (isSkipped)
+                skippedTranscripts.push(`${transcript.id}.${transcript.version}`);
         }
         
         // Get position range for scaling
@@ -157,8 +211,7 @@
         
         // Define visual properties
         // Scale height by number of transcripts
-        const transcriptIds = Object.keys(transcriptGroups);
-        const transcriptCount = transcriptIds.length;
+        const transcriptCount = transcripts.length;
 
         canvas.height = 300; // Set initial height
 
@@ -253,25 +306,27 @@
         });
 
         // Draw Transcripts - each transcript gets its own row
-        transcriptIds.forEach((transcriptId, index) => {
+        transcripts.forEach((transcript, index) => {
             const yTranscriptPath = y + exonHeight / 2 + (index * (exonHeight + pathGap));
-            const features = transcriptGroups[transcriptId];
 
             // Color code transcripts - use different colors or highlight inclusion/skipped transcripts
             let transcriptColor = colours.gtf;
-            if (transcriptId === inclusionTranscript && transcriptId === skippedTranscript)
+            const transcriptID = `${transcript.id}.${transcript.version}`
+            if (inclusionTranscripts.includes(transcriptID) && skippedTranscripts.includes(transcriptID))
                 transcriptColor = colours.combined;
-            else if (transcriptId === inclusionTranscript)
+            else if (inclusionTranscripts.includes(transcriptID))
                 transcriptColor = colours.inclusion;
-            else if (transcriptId === skippedTranscript)
+            else if (skippedTranscripts.includes(transcriptID))
                 transcriptColor = colours.skipped;
+            else if (transcriptID === geneInfo?.canonical_transcript)
+                transcriptColor = colours.canonical;
 
-            features.forEach(feature => {
+            transcript.Exon.forEach(exon => {
                 // Only draw if within visible range
-                if (feature.end < adjustedMin || feature.start > adjustedMax) return;
+                if (exon.end < adjustedMin || exon.start > adjustedMax) return;
 
-                const exonX = Math.max(scaleX(feature.start), x);
-                const exonWidth = Math.min(scaleX(feature.end), x + width) - exonX;
+                const exonX = Math.max(scaleX(exon.start), x);
+                const exonWidth = Math.min(scaleX(exon.end), x + width) - exonX;
 
                 ctx.fillStyle = transcriptColor;
                 ctx.fillRect(exonX, yTranscriptPath - exonHeight/2, exonWidth, exonHeight);
@@ -283,7 +338,7 @@
                     mouseData.y >= yTranscriptPath - exonHeight/2 &&
                     mouseData.y <= yTranscriptPath + exonHeight/2
                 ) {
-                    drawHoverInfo(exonX, exonX + exonWidth, y, ySkippedPath + exonHeight/2, transcriptColor, `${feature.end - feature.start} nt - ${transcriptId} - E${feature.attributes["exon_number"]}`);
+                    drawHoverInfo(exonX, exonX + exonWidth, y, ySkippedPath + exonHeight/2, transcriptColor, `${exon.end - exon.start} nt - ${transcriptID} - E${uniqueGenes.find(g => g.start === exon.start && g.end === exon.end)?.exon_number || 'N/A'}`);
                 }
             });
         });
@@ -330,7 +385,7 @@
             ctx.lineTo(xPos, 5);
             ctx.stroke();
             
-            const label = Math.round(position - absoluteStart);
+            const label = selectedEvent.event.strand === "+" ? Math.round(position - absoluteStart) : Math.round(absoluteEnd - position);
             ctx.fillText(label.toString(), xPos, 15);
         }
         
@@ -421,10 +476,9 @@
     }
 
     function zoomToEvent() {
-        if (!selectedEvent) return;
+        if (!selectedEvent || !geneInfo) return;
         const positions = getPositionsFromData(selectedEvent.event);
-        const geneFeatures = getFeaturesByGene(selectedEvent.event.geneName || selectedEvent.event.geneID).filter(g => g.feature === "exon");
-        const uniqueGenes = geneFeatures.filter((g, index, self) => index === self.findIndex(t => Math.abs(t.start - g.start) < 3 && Math.abs(t.end - g.end) < 3));
+        const uniqueGenes = geneInfo.Transcript.flatMap(transcript => transcript.Exon).filter((g, index, self) => index === self.findIndex(t => Math.abs(t.start - g.start) < 3 && Math.abs(t.end - g.end) < 3));
         const absoluteStart = Math.min(positions.start, ...uniqueGenes.map(g => g.start));
         const absoluteEnd = Math.max(positions.end, ...uniqueGenes.map(g => g.end));
 
@@ -451,6 +505,18 @@
     function changeSameEventOnly(value: boolean) {
         sameEventOnly = value;
         updateValues();
+    }
+
+    function copyToClipboard(text: string) {
+        navigator.clipboard.writeText(text).then(() => {
+            setTooltipHTML("Copied to clipboard!");
+            setTimeout(() => {
+                if (getTooltipHTML() === "Copied to clipboard!")
+                    setTooltipHTML("");
+            }, 2000);
+        }).catch(err => {
+            console.error("Failed to copy text:", err);
+        });
     }
 
     rootObserver(draw);
@@ -492,156 +558,190 @@
             onwheel={handleWheel}
             style="display: block; margin: 0 auto;"
         ></canvas>
-        <div class="info-divs">
-            <div class="info-div">
-                (3nt leniency checks)
-                <p style="color: {colours.inclusion}">
-                    <strong>Inclusion form transcript:</strong>
-                    {#if inclusionTranscript}
-                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{inclusionTranscript}" target="_blank" rel="noopener noreferrer">
-                            {inclusionTranscript}
-                        </a>
-                    {:else}
-                        N/A
-                    {/if}
-                </p>
-                <p style="color: {colours.skipped}">
-                    <strong>Skipped form Transcript:</strong>
-                    {#if skippedTranscript}
-                        <a href="http://www.ncbi.nlm.nih.gov/nuccore/{skippedTranscript}" target="_blank" rel="noopener noreferrer">
-                            {skippedTranscript}
-                        </a>
-                    {:else}
-                        N/A
-                    {/if}
-                <p><strong>Chromosome:</strong> {selectedEvent.event.chr} ({selectedEvent.event.strand} strand)</p>
-                <p><strong>FDR:</strong> {Math.abs(selectedEvent.event.FDR) < 0.001 ? selectedEvent.event.FDR.toExponential(3) : selectedEvent.event.FDR.toFixed(3)}</p>
-                <p><strong>Inclusion Level Difference (ΔΨ):</strong> {Math.abs(selectedEvent.event.psiDiff) < 0.001 ? selectedEvent.event.psiDiff.toExponential(3) : selectedEvent.event.psiDiff.toFixed(3)}</p>
-                <p><strong>Total Position:</strong> {selectedPositions.start} - {selectedPositions.end}</p>
-                <p><strong>Inclusion Level 1 Avg.:</strong> {Math.abs(selectedEvent.event.psi1Avg) < 0.001 ? selectedEvent.event.psi1Avg.toExponential(3) : selectedEvent.event.psi1Avg.toFixed(3)}</p>
-                <p><strong>Inclusion Level 2 Avg.:</strong> {Math.abs(selectedEvent.event.psi2Avg) < 0.001 ? selectedEvent.event.psi2Avg.toExponential(3) : selectedEvent.event.psi2Avg.toFixed(3)}</p>
-                <p><strong>Inclusion Read Count 1 Avg.:</strong> {selectedEvent.event.incCount1Avg.toFixed(3)}</p>
-                <p><strong>Inclusion Read Count 2 Avg.:</strong> {selectedEvent.event.incCount2Avg.toFixed(3)}</p>
-                <p><strong>Skipped Read Count 1 Avg.:</strong> {selectedEvent.event.skipCount1Avg.toFixed(3)}</p>
-                <p><strong>Skipped Read Count 2 Avg.:</strong> {selectedEvent.event.skipCount2Avg.toFixed(3)}</p>
-                {#if selectedEvent.event.eventType === 'SE'}
-                    {@const seEvent = selectedEvent.event as SEEvent}
-                    <p><strong>Target Exon:</strong> {seEvent.exonStart} - {seEvent.exonEnd}</p>
-                    <p><strong>Upstream Exon:</strong> {seEvent.upstreamExonStart} - {seEvent.upstreamExonEnd}</p>
-                    <p><strong>Downstream Exon:</strong> {seEvent.downstreamExonStart} - {seEvent.downstreamExonEnd}</p>
-                    <p><strong>Target Read Count:</strong> {arrayToString(seEvent.targetCount)}</p>
-                    <p><strong>Upstream to Target Count:</strong> {arrayToString(seEvent.upstreamToTargetCount)}</p>
-                    <p><strong>Target to Downstream Count:</strong> {arrayToString(seEvent.targetToDownstreamCount)}</p>
-                    <p><strong>Upstream to Downstream Count:</strong> {arrayToString(seEvent.upstreamToDownstreamCount)}</p>
-                {:else if selectedEvent.event.eventType === 'MXE'}
-                    {@const mxeEvent = selectedEvent.event as MXEEvent}
-                    <p><strong>First Exon:</strong> {mxeEvent.exon1Start} - {mxeEvent.exon1End}</p>
-                    <p><strong>Second Exon:</strong> {mxeEvent.exon2Start} - {mxeEvent.exon2End}</p>
-                    <p><strong>Upstream Exon:</strong> {mxeEvent.upstreamExonStart} - {mxeEvent.upstreamExonEnd}</p>
-                    <p><strong>Downstream Exon:</strong> {mxeEvent.downstreamExonStart} - {mxeEvent.downstreamExonEnd}</p>
-                    <p><strong>First Read Count:</strong> {arrayToString(mxeEvent.firstCount)}</p>
-                    <p><strong>Second Read Count:</strong> {arrayToString(mxeEvent.secondCount)}</p>
-                    <p><strong>Upstream to First Count:</strong> {arrayToString(mxeEvent.upstreamToFirstCount)}</p>
-                    <p><strong>Upstream to Second Count:</strong> {arrayToString(mxeEvent.upstreamToSecondCount)}</p>
-                    <p><strong>First to Downstream Count:</strong> {arrayToString(mxeEvent.firstToDownstreamCount)}</p>
-                    <p><strong>Second to Downstream Count:</strong> {arrayToString(mxeEvent.secondToDownstreamCount)}</p>
-                {:else if selectedEvent.event.eventType === 'A3SS' || selectedEvent.event.eventType === 'A5SS'}
-                    {@const assEvent = selectedEvent.event as ASSEvent}
-                    <p><strong>Long Exon:</strong> {assEvent.longExonStart} - {assEvent.longExonEnd}</p>
-                    <p><strong>Short Exon:</strong> {assEvent.shortExonStart} - {assEvent.shortExonEnd}</p>
-                    <p><strong>Flanking Exon:</strong> {assEvent.flankingExonStart} - {assEvent.flankingExonEnd}</p>
-                    <p><strong>Across Short Boundary Count:</strong> {arrayToString(assEvent.acrossShortBoundaryCount)}</p>
-                    <p><strong>Long to Flanking Count:</strong> {arrayToString(assEvent.longToFlankingCount)}</p>
-                    <p><strong>Exclusive to Long Count:</strong> {arrayToString(assEvent.exclusiveToLongCount)}</p>
-                    <p><strong>Short to Flanking Count:</strong> {arrayToString(assEvent.shortToFlankingCount)}</p>
-                {:else if selectedEvent.event.eventType === 'RI'}
-                    {@const riEvent = selectedEvent.event as RIEvent}
-                    <p><strong>RI Exon:</strong> {riEvent.riExonStart} - {riEvent.riExonEnd}</p>
-                    <p><strong>Upstream Exon:</strong> {riEvent.upstreamExonStart} - {riEvent.upstreamExonEnd}</p>
-                    <p><strong>Downstream Exon:</strong> {riEvent.downstreamExonStart} - {riEvent.downstreamExonEnd}</p>
-                    <p><strong>Intron Count:</strong> {arrayToString(riEvent.intronCount)}</p>
-                    <p><strong>Upstream to Intron Count:</strong> {arrayToString(riEvent.upstreamToIntronCount)}</p>
-                    <p><strong>Intron to Downstream Count:</strong> {arrayToString(riEvent.intronToDownstreamCount)}</p>
-                    <p><strong>Upstream to Downstream Count:</strong> {arrayToString(riEvent.upstreamToDownstreamCount)}</p>
-                {/if}
-                <ViolinChart
-                    keys={["Ψ1", "Ψ2"]}
-                    data={[filteredEvents.flatMap(event => event.event.psi1), filteredEvents.flatMap(event => event.event.psi2)]}
-                    updateOnFilter="selectedEvent"
-                ></ViolinChart>
-                <PieChart
-                    data={eventCounts}
-                ></PieChart>
-                <VolcanoChart
-                    data={[selectedEvent.event, ...selectedEvent.geneEvents.map(e => e.event)]}
-                    strain={{ name: selectedEvent.strain.name, colour: selectedEvent.strain.colour }}
-                    updateOnFilter="selectedEvent"
-                ></VolcanoChart>
-            </div>
-            {#if selectedEvent.geneEvents.length > 0}
+        {#if !loading}
+            <div class="info-divs">
                 <div class="info-div">
-                    <h4>All events for this Gene ({filteredEvents.length} events)<br>
-                        Select below to view the details of each event.</h4>
-                    <button
-                        class="toggle-filter"
-                        style="margin-bottom: 10px;"
-                        onclick={() => changeFilter(!useFilter)}
-                    >
-                        {useFilter ? "Disable Filter" : "Enable Filter"}
-                    </button>
-                    <button
-                        class="toggle-filter"
-                        onclick={() => changeReadCountThresh(!readCountThresh)}
-                    >
-                        {readCountThresh ? "Disable Read Count Threshold" : "Enable Read Count Threshold"}
-                    </button>
-                    <button
-                        class="toggle-filter"
-                        onclick={() => changeSameEventOnly(!sameEventOnly)}
-                    >
-                        {sameEventOnly ? "Disable Same Event Filter" : "Enable Same Event Filter"}
-                    </button>
-                    <ul>
-                        {#each filteredEvents as event}
-                            {@const positions = getPositionsFromData(event.event)}
-                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                            <li
-                                style="color: {event.strain.colour}; cursor: pointer;"
-                                onclick={() => {
-                                    setSelectedEvent(event);
-                                    draw();
-                                }}
-                                onkeydown={() => {
-                                    setSelectedEvent(event);
-                                    draw();
-                                }}
-                            >
-                                <span style="text-decoration: underline;">
-                                    {#if selectedEvent.event.ID === event.event.ID && selectedEvent.strain.name === event.strain.name}
-                                        <strong>{event.strain.name} (Selected)</strong>
-                                    {:else}
-                                        {event.strain.name}
-                                    {/if}
-                                </span>
-                                <ul>
-                                    {#if eventID(event.event) === eventID(selectedEvent.event) && `${event.strain.name}_${event.event.ID}` !== `${selectedEvent.strain.name}_${selectedEvent.event.ID}`}
-                                        <li><strong>(Same Event)</strong></li>
-                                    {/if}
-                                    <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
-                                    <li>FDR: {Math.abs(event.event.FDR) < 0.001 && event.event.FDR !== 0 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
-                                    <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
-                                    <li>Inclusion Read Count 1 Avg.: {event.event.incCount1Avg.toFixed(3)}</li>
-                                    <li>Inclusion Read Count 2 Avg.: {event.event.incCount2Avg.toFixed(3)}</li>
-                                    <li>Skipped Read Count 1 Avg.: {event.event.skipCount1Avg.toFixed(3)}</li>
-                                    <li>Skipped Read Count 2 Avg.: {event.event.skipCount2Avg.toFixed(3)}</li>
-                                    <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start} - {positions.end}</li>
-                                </ul>
-                            </li>
-                        {/each}
-                    </ul>
+                    <p style="color: {colours.canonical}">
+                        <strong>Canonical transcript:</strong>
+                        {#if geneInfo}
+                            <a href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={geneInfo.canonical_transcript}" target="_blank" rel="noopener noreferrer">
+                                {geneInfo.canonical_transcript}
+                            </a>
+                        {:else}
+                            N/A
+                        {/if}
+                    </p>
+                    {#if rnaSeq}
+                        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                        <p
+                            class="rna-seq"
+                            onclick={() => copyToClipboard(rnaSeq!)}
+                            onkeydown={() => copyToClipboard(rnaSeq!)}
+                            aria-label="Click to copy RNA sequence"
+                        >
+                            <strong>Event Region RNA Sequence (click to copypaste):</strong>
+                            <span class="clickable">
+                                {rnaSeq}
+                            </span>
+                        </p>
+                    {/if}
+                    <p style="color: {colours.inclusion}">
+                        <strong>Inclusion form transcript:</strong>
+                        {#if inclusionTranscripts.length > 0}
+                            {#each inclusionTranscripts as inclusionTranscript, i}
+                                {#if i > 0},{/if}
+                                <a href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={inclusionTranscript}" target="_blank" rel="noopener noreferrer">
+                                    {inclusionTranscript}
+                                </a>
+                            {/each}
+                        {:else}
+                            N/A
+                        {/if}
+                    </p>
+                    <p style="color: {colours.skipped}">
+                        <strong>Skipped form Transcript:</strong>
+                        {#if skippedTranscripts.length > 0}
+                            {#each skippedTranscripts as skippedTranscript, i}
+                                {#if i > 0},{/if}
+                                <a href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={skippedTranscript}" target="_blank" rel="noopener noreferrer">
+                                    {skippedTranscript}
+                                </a>
+                            {/each}
+                        {:else}
+                            N/A
+                        {/if}
+                    <p><strong>Chromosome:</strong> {selectedEvent.event.chr} ({selectedEvent.event.strand} strand)</p>
+                    <p><strong>FDR:</strong> {Math.abs(selectedEvent.event.FDR) < 0.001 ? selectedEvent.event.FDR.toExponential(3) : selectedEvent.event.FDR.toFixed(3)}</p>
+                    <p><strong>Inclusion Level Difference (ΔΨ):</strong> {Math.abs(selectedEvent.event.psiDiff) < 0.001 ? selectedEvent.event.psiDiff.toExponential(3) : selectedEvent.event.psiDiff.toFixed(3)}</p>
+                    <p style="color: {significance === 'Upregulated' ? 'rgb(255,0,0)' : significance === 'Downregulated' ? 'rgb(0,0,255)' : 'initial'}"><strong>Significance:</strong> {significance}</p>
+                    <p><strong>Total Position:</strong> {selectedPositions.start} - {selectedPositions.end}</p>
+                    <p><strong>Inclusion Level 1 Avg.:</strong> {Math.abs(selectedEvent.event.psi1Avg) < 0.001 ? selectedEvent.event.psi1Avg.toExponential(3) : selectedEvent.event.psi1Avg.toFixed(3)}</p>
+                    <p><strong>Inclusion Level 2 Avg.:</strong> {Math.abs(selectedEvent.event.psi2Avg) < 0.001 ? selectedEvent.event.psi2Avg.toExponential(3) : selectedEvent.event.psi2Avg.toFixed(3)}</p>
+                    <p><strong>Inclusion Read Count 1 Avg.:</strong> {selectedEvent.event.incCount1Avg.toFixed(3)}</p>
+                    <p><strong>Inclusion Read Count 2 Avg.:</strong> {selectedEvent.event.incCount2Avg.toFixed(3)}</p>
+                    <p><strong>Skipped Read Count 1 Avg.:</strong> {selectedEvent.event.skipCount1Avg.toFixed(3)}</p>
+                    <p><strong>Skipped Read Count 2 Avg.:</strong> {selectedEvent.event.skipCount2Avg.toFixed(3)}</p>
+                    {#if selectedEvent.event.eventType === 'SE'}
+                        {@const seEvent = selectedEvent.event as SEEvent}
+                        <p><strong>Target Exon:</strong> {seEvent.exonStart} - {seEvent.exonEnd}</p>
+                        <p><strong>Upstream Exon:</strong> {seEvent.upstreamExonStart} - {seEvent.upstreamExonEnd}</p>
+                        <p><strong>Downstream Exon:</strong> {seEvent.downstreamExonStart} - {seEvent.downstreamExonEnd}</p>
+                        <p><strong>Target Read Count:</strong> {arrayToString(seEvent.targetCount)}</p>
+                        <p><strong>Upstream to Target Count:</strong> {arrayToString(seEvent.upstreamToTargetCount)}</p>
+                        <p><strong>Target to Downstream Count:</strong> {arrayToString(seEvent.targetToDownstreamCount)}</p>
+                        <p><strong>Upstream to Downstream Count:</strong> {arrayToString(seEvent.upstreamToDownstreamCount)}</p>
+                    {:else if selectedEvent.event.eventType === 'MXE'}
+                        {@const mxeEvent = selectedEvent.event as MXEEvent}
+                        <p><strong>First Exon:</strong> {mxeEvent.exon1Start} - {mxeEvent.exon1End}</p>
+                        <p><strong>Second Exon:</strong> {mxeEvent.exon2Start} - {mxeEvent.exon2End}</p>
+                        <p><strong>Upstream Exon:</strong> {mxeEvent.upstreamExonStart} - {mxeEvent.upstreamExonEnd}</p>
+                        <p><strong>Downstream Exon:</strong> {mxeEvent.downstreamExonStart} - {mxeEvent.downstreamExonEnd}</p>
+                        <p><strong>First Read Count:</strong> {arrayToString(mxeEvent.firstCount)}</p>
+                        <p><strong>Second Read Count:</strong> {arrayToString(mxeEvent.secondCount)}</p>
+                        <p><strong>Upstream to First Count:</strong> {arrayToString(mxeEvent.upstreamToFirstCount)}</p>
+                        <p><strong>Upstream to Second Count:</strong> {arrayToString(mxeEvent.upstreamToSecondCount)}</p>
+                        <p><strong>First to Downstream Count:</strong> {arrayToString(mxeEvent.firstToDownstreamCount)}</p>
+                        <p><strong>Second to Downstream Count:</strong> {arrayToString(mxeEvent.secondToDownstreamCount)}</p>
+                    {:else if selectedEvent.event.eventType === 'A3SS' || selectedEvent.event.eventType === 'A5SS'}
+                        {@const assEvent = selectedEvent.event as ASSEvent}
+                        <p><strong>Long Exon:</strong> {assEvent.longExonStart} - {assEvent.longExonEnd}</p>
+                        <p><strong>Short Exon:</strong> {assEvent.shortExonStart} - {assEvent.shortExonEnd}</p>
+                        <p><strong>Flanking Exon:</strong> {assEvent.flankingExonStart} - {assEvent.flankingExonEnd}</p>
+                        <p><strong>Across Short Boundary Count:</strong> {arrayToString(assEvent.acrossShortBoundaryCount)}</p>
+                        <p><strong>Long to Flanking Count:</strong> {arrayToString(assEvent.longToFlankingCount)}</p>
+                        <p><strong>Exclusive to Long Count:</strong> {arrayToString(assEvent.exclusiveToLongCount)}</p>
+                        <p><strong>Short to Flanking Count:</strong> {arrayToString(assEvent.shortToFlankingCount)}</p>
+                    {:else if selectedEvent.event.eventType === 'RI'}
+                        {@const riEvent = selectedEvent.event as RIEvent}
+                        <p><strong>RI Exon:</strong> {riEvent.riExonStart} - {riEvent.riExonEnd}</p>
+                        <p><strong>Upstream Exon:</strong> {riEvent.upstreamExonStart} - {riEvent.upstreamExonEnd}</p>
+                        <p><strong>Downstream Exon:</strong> {riEvent.downstreamExonStart} - {riEvent.downstreamExonEnd}</p>
+                        <p><strong>Intron Count:</strong> {arrayToString(riEvent.intronCount)}</p>
+                        <p><strong>Upstream to Intron Count:</strong> {arrayToString(riEvent.upstreamToIntronCount)}</p>
+                        <p><strong>Intron to Downstream Count:</strong> {arrayToString(riEvent.intronToDownstreamCount)}</p>
+                        <p><strong>Upstream to Downstream Count:</strong> {arrayToString(riEvent.upstreamToDownstreamCount)}</p>
+                    {/if}
+                    <ViolinChart
+                        keys={["Ψ1", "Ψ2"]}
+                        data={[filteredEvents.flatMap(event => event.event.psi1), filteredEvents.flatMap(event => event.event.psi2)]}
+                        updateOnFilter="selectedEvent"
+                    ></ViolinChart>
+                    <PieChart
+                        data={eventCounts}
+                    ></PieChart>
+                    <VolcanoChart
+                        data={[selectedEvent.event, ...selectedEvent.geneEvents.map(e => e.event)]}
+                        strain={{ name: selectedEvent.strain.name, colour: selectedEvent.strain.colour }}
+                        updateOnFilter="selectedEvent"
+                    ></VolcanoChart>
                 </div>
-            {/if}
-        </div>
+                {#if selectedEvent.geneEvents.length > 0}
+                    <div class="info-div">
+                        <h4>All events for this Gene ({filteredEvents.length} events)<br>
+                            Select below to view the details of each event.</h4>
+                        <button
+                            class="toggle-filter"
+                            style="margin-bottom: 10px;"
+                            onclick={() => changeFilter(!useFilter)}
+                        >
+                            {useFilter ? "Disable Filter" : "Enable Filter"}
+                        </button>
+                        <button
+                            class="toggle-filter"
+                            onclick={() => changeReadCountThresh(!readCountThresh)}
+                        >
+                            {readCountThresh ? "Disable Read Count Threshold" : "Enable Read Count Threshold"}
+                        </button>
+                        <button
+                            class="toggle-filter"
+                            onclick={() => changeSameEventOnly(!sameEventOnly)}
+                        >
+                            {sameEventOnly ? "Disable Same Event Filter" : "Enable Same Event Filter"}
+                        </button>
+                        <ul>
+                            {#each filteredEvents as event}
+                                {@const positions = getPositionsFromData(event.event)}
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <li
+                                    style="color: {event.strain.colour}; cursor: pointer;"
+                                    onclick={() => {
+                                        setSelectedEvent(event);
+                                        draw();
+                                    }}
+                                    onkeydown={() => {
+                                        setSelectedEvent(event);
+                                        draw();
+                                    }}
+                                >
+                                    <span style="text-decoration: underline;">
+                                        {#if selectedEvent.event.ID === event.event.ID && selectedEvent.strain.name === event.strain.name}
+                                            <strong>{event.strain.name} (Selected)</strong>
+                                        {:else}
+                                            {event.strain.name}
+                                        {/if}
+                                    </span>
+                                    <ul>
+                                        {#if eventID(event.event) === eventID(selectedEvent.event) && `${event.strain.name}_${event.event.ID}` !== `${selectedEvent.strain.name}_${selectedEvent.event.ID}`}
+                                            <li><strong>(Same Event)</strong></li>
+                                        {/if}
+                                        <li style="color: {eventColours[event.event.eventType]}">Event Type: {event.event.eventType}</li>
+                                        <li>FDR: {Math.abs(event.event.FDR) < 0.001 && event.event.FDR !== 0 ? event.event.FDR.toExponential(3) : event.event.FDR.toFixed(3)}</li>
+                                        <li>Inclusion Level Difference (ΔΨ): {Math.abs(event.event.psiDiff) < 0.001 ? event.event.psiDiff.toExponential(3) : event.event.psiDiff.toFixed(3)}</li>
+                                        <li>Inclusion Read Count 1 Avg.: {event.event.incCount1Avg.toFixed(3)}</li>
+                                        <li>Inclusion Read Count 2 Avg.: {event.event.incCount2Avg.toFixed(3)}</li>
+                                        <li>Skipped Read Count 1 Avg.: {event.event.skipCount1Avg.toFixed(3)}</li>
+                                        <li>Skipped Read Count 2 Avg.: {event.event.skipCount2Avg.toFixed(3)}</li>
+                                        <li>Location: {event.event.chr} ({event.event.strand} strand) {positions.start} - {positions.end}</li>
+                                    </ul>
+                                </li>
+                            {/each}
+                        </ul>
+                    </div>
+                {/if}
+            </div>
+        {:else}
+            <p>Loading...</p>
+        {/if}
     </div>
 {/if}
 
@@ -687,5 +787,12 @@
 
     .info-div {
         flex: 1;
+        overflow: hidden;
+    }
+
+    .rna-seq {
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>
