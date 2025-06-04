@@ -1,5 +1,16 @@
 import { settings } from "./settings";
 
+export const biotypeSortOrder: Record<string, number> = {
+    "protein_coding": 1,
+    "protein_coding_LoF": 2,
+    "protein_coding_CDS_not_defined": 3,
+    "processed_transcript": 4,
+    "retained_intron": 5,
+    "lncRNA": 6,
+    "other": 7,
+    "TEC": 8,
+}
+
 export interface EnsemblSpecies {
     name: string;
     display_name: string;
@@ -17,7 +28,7 @@ export interface SymbolLookup {
     seq_region_name: string;
     display_name: string;
     version: number;
-    strand: number;
+    strand: 1 | -1;
     logic_name: string;
     biotype: string;
     canonical_transcript: string;
@@ -93,12 +104,13 @@ function getEnsemblReq<T>(url: string): Promise<T> {
 export function getSequenceRegion(
     chromosome: string,
     start: number,
-    end: number
+    end: number,
+    strand: 1 | -1,
 ): Promise<string> {
     const urlPath = 'sequence/region';
 
     const chromosomeFormatted = chromosome.replace('chr', '');
-    const url = `${urlPath}/${settings.selectedSpecies}/${chromosomeFormatted}:${start}-${end}?content-type=application/json`;
+    const url = `${urlPath}/${settings.selectedSpecies}/${chromosomeFormatted}:${start}-${end}:${strand}?content-type=application/json`;
     return getEnsemblReq<{ seq: string } | { error: string }>(url)
     .then((data) => {
         if ('seq' in data)
@@ -122,9 +134,20 @@ export function getGeneInfo(geneId: string): Promise<SymbolLookup> {
     .then((data) => {
         if ('error' in data)
             throw new Error(data.error);
-        else if ('species' in data && 'id' in data)
-            return data as SymbolLookup;
-        else
+        else if ('species' in data && 'id' in data) {
+            // Ok so basically this was really because NCBI removes the stop codon from the CDS region, while Ensembl does not, and for now I am going to just keep the stop codons
+            // // For each transcript, if strand if 1, subtract 3 from end in translation. If strand is -1, add 3 to start in translation
+            // // This is after empirically comparing the CDS regions between Ensembl and NCBI, and finding that Ensembl's CDS regions are shifted by 3 bases.
+            // data.Transcript.forEach((transcript) => {
+            //     if (transcript.Translation) {
+            //         if (transcript.strand === 1)
+            //             transcript.Translation.end -= 3;
+            //         else if (transcript.strand === -1)
+            //             transcript.Translation.start += 3;
+            //     }
+            // });
+            return data;
+        } else
             throw new Error('Unexpected response format');
     })
     .catch((error) => {

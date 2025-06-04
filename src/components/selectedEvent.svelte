@@ -8,17 +8,26 @@
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
     import { arrayToString } from "../../utils/tables";
-    import { getGeneInfo, getSequenceRegion, type Exon, type SymbolLookup, type Transcript } from "./states/ensembl";
+    import { biotypeSortOrder, getGeneInfo, getSequenceRegion, type Exon, type SymbolLookup, type Transcript } from "./states/ensembl";
     import { getTooltipHTML, setTooltipHTML } from "./states/tooltip";
 
     let canvas: HTMLCanvasElement | null = null;
     let selectedEvent: SelectedEvent | null = null;
     let currGeneName: string | null = null;
     let geneInfo: SymbolLookup | null = null;
-    let inclusionTranscripts: string[] = [];
-    let skippedTranscripts: string[] = [];
-    let rnaSeq: string | null = null;
+
+    let inclusionTranscripts: Transcript[] = [];
+    let inclusionBestCandidate: Transcript | null = null;
+    let inclusionBestCandidateSeq: string | null = null;
+
+    let skippedTranscripts: Transcript[] = [];
+    let skippedBestCandidate: Transcript | null = null;
+    let skippedBestCandidateSeq: string | null = null;
+
+    let canonicalSeq: string | null = null;
+
     let significance: "Upregulated" | "Downregulated" | "Not Significant" | null = null;
+
     let useFilter = true;
     let readCountThresh = true;
     let sameEventOnly = false;
@@ -67,18 +76,26 @@
 
         if (currGeneName !== selectedEvent.event.geneName) {
             geneInfo = null;
-            rnaSeq = null;
             try {
-                const genePos = getPositionsFromData(selectedEvent.event);
-                [geneInfo, rnaSeq] = await Promise.all([
-                    getGeneInfo(selectedEvent.event.geneName),
-                    getSequenceRegion(selectedEvent.event.chr, genePos.start, genePos.end),
-                ]);
+                geneInfo = await getGeneInfo(selectedEvent.event.geneName);
             } catch (e) {
                 console.error("Failed to fetch gene info or RNA sequence:", e);
-                rnaSeq = null;
                 geneInfo = null;
             }
+
+            canonicalSeq = null;
+            if (geneInfo) {
+                const translation = geneInfo.Transcript.find(t => t.is_canonical)?.Translation;
+                if (translation) {
+                    try {
+                        canonicalSeq = await getSequenceRegion(geneInfo.seq_region_name, translation.start, translation.end, geneInfo.strand);
+                    } catch (e) {
+                        console.error("Failed to fetch canonical sequence:", e);
+                        canonicalSeq = null;
+                    }
+                }
+            }
+
             currGeneName = selectedEvent.event.geneName;
         }
         filteredEvents = selectedEvent.geneEvents.filter(event => {
@@ -100,6 +117,123 @@
             acc[eventType] = (acc[eventType] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
+
+        const exons = getSplicingExons(selectedEvent.event);
+
+        if (geneInfo && exons.length > 0) {
+            const inclusionExons = exons.filter(exon => exon.inclusion && exon.type !== "junction");
+            const skippedExons = exons.filter(exon => (!exon.inclusion || exon.type === "upstream" || exon.type === "downstream" || exon.type === "flanking") && exon.type !== "junction");
+
+            // See which transcript the selected event belongs to, ensuring that there are no exons between the ones noted in inclusionEcons and skippedExons
+            const transcripts = geneInfo.Transcript;
+            inclusionTranscripts = [];
+            inclusionBestCandidate = null;
+            skippedTranscripts = [];
+            skippedBestCandidate = null;
+            for (const transcript of transcripts) {
+                if (transcript.biotype === "retained_intron" && selectedEvent.event.eventType !== "RI") continue; // Skip retained intron transcripts if not a RI event
+
+                let isInclusion = inclusionExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
+                let isSkipped = skippedExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
+                const minInclusionPos = Math.min(...inclusionExons.map(e => e.start));
+                const maxInclusionPos = Math.max(...inclusionExons.map(e => e.end));
+                const minSkippedPos = Math.min(...skippedExons.map(e => e.start));
+                const maxSkippedPos = Math.max(...skippedExons.map(e => e.end));
+
+                // Check if there are any exons in between inclusion and skipped exons
+                if (transcript.Exon.some(tExon => {
+                    return (
+                        (tExon.start >= minInclusionPos && tExon.start <= maxInclusionPos) || 
+                        (tExon.end >= minInclusionPos && tExon.end <= maxInclusionPos)
+                    ) && !inclusionExons.some(e => e.start === tExon.start && e.end === tExon.end); 
+                }))
+                    isInclusion = false;
+                if (isInclusion)
+                    inclusionTranscripts.push(transcript);
+
+                if (transcript.Exon.some(tExon => {
+                    return (
+                        (tExon.start >= minSkippedPos && tExon.start <= maxSkippedPos) || 
+                        (tExon.end >= minSkippedPos && tExon.end <= maxSkippedPos)
+                    ) && !skippedExons.some(e => e.start === tExon.start && e.end === tExon.end); 
+                }))
+                    isSkipped = false;
+                if (isSkipped)
+                    skippedTranscripts.push(transcript);
+            }
+            // Sort by priority:
+            // Canonical transcript first, then gencode_primary 1, then biotype, then translation length
+            inclusionTranscripts.sort((a, b) => {
+                if (a.is_canonical) return -1;
+                if (b.is_canonical) return 1;
+                
+                if (a.gencode_primary === 1 && b.gencode_primary !== 1) return -1;
+                if (b.gencode_primary === 1 && a.gencode_primary !== 1) return 1;
+                
+                const orderA = biotypeSortOrder[a.biotype] || biotypeSortOrder["other"];
+                const orderB = biotypeSortOrder[b.biotype] || biotypeSortOrder["other"];
+                if (orderA !== orderB) return orderA - orderB;
+
+                const lengthA = a.Translation?.length || a.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
+                const lengthB = b.Translation?.length || b.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
+                return lengthB - lengthA;
+            });
+            skippedTranscripts.sort((a, b) => {
+                if (a.is_canonical) return -1;
+                if (b.is_canonical) return 1;
+
+                if (a.gencode_primary === 1 && b.gencode_primary !== 1) return -1;
+                if (b.gencode_primary === 1 && a.gencode_primary !== 1) return 1;
+
+                const orderA = biotypeSortOrder[a.biotype] || biotypeSortOrder["other"];
+                const orderB = biotypeSortOrder[b.biotype] || biotypeSortOrder["other"];
+                if (orderA !== orderB) return orderA - orderB;
+
+                const lengthA = a.Translation?.length || a.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
+                const lengthB = b.Translation?.length || b.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
+                return lengthB - lengthA;
+            });
+            if (inclusionTranscripts.length > 0)
+                inclusionBestCandidate = inclusionTranscripts[0];
+            if (skippedTranscripts.length > 0)
+                skippedBestCandidate = skippedTranscripts[0];
+
+            inclusionBestCandidateSeq = null;
+            skippedBestCandidateSeq = null;
+
+            if (inclusionBestCandidate?.is_canonical)
+                inclusionBestCandidateSeq = canonicalSeq;    
+            else if (inclusionBestCandidate && inclusionBestCandidate.Translation) {
+                getSequenceRegion(
+                    inclusionBestCandidate.seq_region_name,
+                    inclusionBestCandidate.Translation.start,
+                    inclusionBestCandidate.Translation.end,
+                    geneInfo.strand,
+                ).then(seq => {
+                    inclusionBestCandidateSeq = seq;
+                }).catch(err => {
+                    console.error("Failed to fetch inclusion best candidate sequence:", err);
+                    inclusionBestCandidateSeq = null;
+                });
+            }
+
+            if (skippedBestCandidate?.is_canonical)
+                skippedBestCandidateSeq = canonicalSeq;
+            else if (skippedBestCandidate && skippedBestCandidate.Translation) {
+                getSequenceRegion(
+                    skippedBestCandidate.seq_region_name,
+                    skippedBestCandidate.Translation.start,
+                    skippedBestCandidate.Translation.end,
+                    geneInfo.strand,
+                ).then(seq => {
+                    skippedBestCandidateSeq = seq;
+                }).catch(err => {
+                    console.error("Failed to fetch skipped best candidate sequence:", err);
+                    skippedBestCandidateSeq = null;
+                });
+            }
+        }
+
         loading = false;
         if (mustDraw)
             draw();
@@ -163,39 +297,6 @@
             ...g,
             exon_number: g.strand === 1 ? index + 1 : uniqueGenes.length - index // Assign exon number based on strand direction
         }));
-
-        // See which transcript the selected event belongs to, ensuring that there are no exons between the ones noted in inclusionEcons and skippedExons
-        inclusionTranscripts = [];
-        skippedTranscripts = [];
-        for (const transcript of transcripts) {
-            let isInclusion = inclusionExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
-            let isSkipped = skippedExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
-            const minInclusionPos = Math.min(...inclusionExons.map(e => e.start));
-            const maxInclusionPos = Math.max(...inclusionExons.map(e => e.end));
-            const minSkippedPos = Math.min(...skippedExons.map(e => e.start));
-            const maxSkippedPos = Math.max(...skippedExons.map(e => e.end));
-
-            // Check if there are any exons in between inclusion and skipped exons
-            if (transcript.Exon.some(tExon => {
-                return (
-                    (tExon.start >= minInclusionPos && tExon.start <= maxInclusionPos) || 
-                    (tExon.end >= minInclusionPos && tExon.end <= maxInclusionPos)
-                ) && !inclusionExons.some(e => e.start === tExon.start && e.end === tExon.end); 
-            }))
-                isInclusion = false;
-            if (isInclusion)
-                inclusionTranscripts.push(`${transcript.id}.${transcript.version}`);
-
-            if (transcript.Exon.some(tExon => {
-                return (
-                    (tExon.start >= minSkippedPos && tExon.start <= maxSkippedPos) || 
-                    (tExon.end >= minSkippedPos && tExon.end <= maxSkippedPos)
-                ) && !skippedExons.some(e => e.start === tExon.start && e.end === tExon.end); 
-            }))
-                isSkipped = false;
-            if (isSkipped)
-                skippedTranscripts.push(`${transcript.id}.${transcript.version}`);
-        }
         
         // Get position range for scaling
         const positions = getPositionsFromData(selectedEvent.event);
@@ -312,11 +413,11 @@
             // Color code transcripts - use different colors or highlight inclusion/skipped transcripts
             let transcriptColor = colours.gtf;
             const transcriptID = `${transcript.id}.${transcript.version}`
-            if (inclusionTranscripts.includes(transcriptID) && skippedTranscripts.includes(transcriptID))
+            if (inclusionTranscripts.some(t => `${t.id}.${t.version}` === transcriptID) && skippedTranscripts.some(t => `${t.id}.${t.version}` === transcriptID))
                 transcriptColor = colours.combined;
-            else if (inclusionTranscripts.includes(transcriptID))
+            else if (inclusionTranscripts.some(t => `${t.id}.${t.version}` === transcriptID))
                 transcriptColor = colours.inclusion;
-            else if (skippedTranscripts.includes(transcriptID))
+            else if (skippedTranscripts.some(t => `${t.id}.${t.version}` === transcriptID))
                 transcriptColor = colours.skipped;
             else if (transcriptID === geneInfo?.canonical_transcript)
                 transcriptColor = colours.canonical;
@@ -571,18 +672,21 @@
                             N/A
                         {/if}
                     </p>
-                    {#if rnaSeq}
+                    {#if canonicalSeq}
                         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                         <p
+                            style="color: {colours.canonical}"
                             class="rna-seq"
-                            onclick={() => copyToClipboard(rnaSeq!)}
-                            onkeydown={() => copyToClipboard(rnaSeq!)}
+                            onclick={() => copyToClipboard(canonicalSeq!)}
+                            onkeydown={() => copyToClipboard(canonicalSeq!)}
                             aria-label="Click to copy RNA sequence"
                         >
-                            <strong>Event Region RNA Sequence (click to copypaste):</strong>
+                            <strong>Canonical Sequence ({canonicalSeq.length} nt)<br>(click to copypaste):</strong>
                             <span class="clickable">
-                                {rnaSeq}
+                                {canonicalSeq}
                             </span>
+                            <br>
+                            <strong>Start Codon:</strong> {canonicalSeq.slice(0, 3)} | <strong>Stop Codon:</strong> {canonicalSeq.slice(-3)}
                         </p>
                     {/if}
                     <p style="color: {colours.inclusion}">
@@ -590,12 +694,50 @@
                         {#if inclusionTranscripts.length > 0}
                             {#each inclusionTranscripts as inclusionTranscript, i}
                                 {#if i > 0},{/if}
-                                <a href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={inclusionTranscript}" target="_blank" rel="noopener noreferrer">
-                                    {inclusionTranscript}
+                                <a
+                                    style="color: {geneInfo?.canonical_transcript === `${inclusionTranscript.id}.${inclusionTranscript.version}` ? colours.canonical : "inherit"}"
+                                    href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={inclusionTranscript.id}.{inclusionTranscript.version}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    {inclusionTranscript.id}.{inclusionTranscript.version}
                                 </a>
                             {/each}
                         {:else}
                             N/A
+                        {/if}
+                        <br>
+                        {#if inclusionBestCandidate}
+                            <strong>Best candidate:</strong>
+                            <a
+                                style="color: {geneInfo?.canonical_transcript === `${inclusionBestCandidate.id}.${inclusionBestCandidate.version}` ? colours.canonical : "inherit"}"
+                                href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={inclusionBestCandidate.id}.{inclusionBestCandidate.version}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {inclusionBestCandidate.id}.{inclusionBestCandidate.version}
+                            </a>
+                            <br>
+                            <strong>Biotype:</strong>
+                            {inclusionBestCandidate.biotype}
+                            <br>
+                            {#if inclusionBestCandidateSeq}
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                <span
+                                    class="rna-seq"
+                                    aria-label="Click to copy RNA sequence"
+                                    onclick={() => copyToClipboard(inclusionBestCandidateSeq!)}
+                                    onkeydown={() => copyToClipboard(inclusionBestCandidateSeq!)}
+                                >
+                                    <strong>Inclusion Sequence ({inclusionBestCandidateSeq.length} nt)<br>(click to copypaste):</strong>
+                                    <span class="clickable">
+                                        {inclusionBestCandidateSeq}
+                                    </span>
+                                    <br>
+                                    <strong>Start Codon:</strong> {inclusionBestCandidateSeq.slice(0, 3)} | <strong>Stop Codon:</strong> {inclusionBestCandidateSeq.slice(-3)}
+                                </span>
+                            {/if}
                         {/if}
                     </p>
                     <p style="color: {colours.skipped}">
@@ -603,13 +745,52 @@
                         {#if skippedTranscripts.length > 0}
                             {#each skippedTranscripts as skippedTranscript, i}
                                 {#if i > 0},{/if}
-                                <a href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={skippedTranscript}" target="_blank" rel="noopener noreferrer">
-                                    {skippedTranscript}
+                                <a
+                                    style="color: {geneInfo?.canonical_transcript === `${skippedTranscript.id}.${skippedTranscript.version}` ? colours.canonical : "inherit"}"
+                                    href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={skippedTranscript.id}.{skippedTranscript.version}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    {skippedTranscript.id}.{skippedTranscript.version}
                                 </a>
                             {/each}
                         {:else}
                             N/A
                         {/if}
+                        <br>
+                        {#if skippedBestCandidate}
+                            <strong>Best candidate:</strong>
+                            <a
+                                style="color: {geneInfo?.canonical_transcript === `${skippedBestCandidate.id}.${skippedBestCandidate.version}` ? colours.canonical : "inherit"}"
+                                href="https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene={skippedBestCandidate.id}.{skippedBestCandidate.version}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {skippedBestCandidate.id}.{skippedBestCandidate.version}
+                            </a>
+                            <br>
+                            <strong>Biotype:</strong>
+                            {skippedBestCandidate.biotype}
+                            <br>
+                            {#if skippedBestCandidateSeq}
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                <span
+                                    class="rna-seq"
+                                    aria-label="Click to copy RNA sequence"
+                                    onclick={() => copyToClipboard(skippedBestCandidateSeq!)}
+                                    onkeydown={() => copyToClipboard(skippedBestCandidateSeq!)}
+                                >
+                                    <strong>Skipped Sequence ({skippedBestCandidateSeq.length} nt)<br>(click to copypaste):</strong>
+                                    <span class="clickable">
+                                        {skippedBestCandidateSeq}
+                                    </span>
+                                    <br>
+                                    <strong>Start Codon:</strong> {skippedBestCandidateSeq.slice(0, 3)} | <strong>Stop Codon:</strong> {skippedBestCandidateSeq.slice(-3)}
+                                </span>
+                            {/if}
+                        {/if}
+                    </p>
                     <p><strong>Chromosome:</strong> {selectedEvent.event.chr} ({selectedEvent.event.strand} strand)</p>
                     <p><strong>FDR:</strong> {Math.abs(selectedEvent.event.FDR) < 0.001 ? selectedEvent.event.FDR.toExponential(3) : selectedEvent.event.FDR.toFixed(3)}</p>
                     <p><strong>Inclusion Level Difference (ΔΨ):</strong> {Math.abs(selectedEvent.event.psiDiff) < 0.001 ? selectedEvent.event.psiDiff.toExponential(3) : selectedEvent.event.psiDiff.toFixed(3)}</p>
