@@ -61,7 +61,11 @@
         selectedEvent = getSelectedEvent();
         if (!selectedEvent)
             return;
-
+        
+        inclusionTranscripts = [];
+        inclusionBestCandidate = null;
+        skippedTranscripts = [];
+        skippedBestCandidate = null;
         significance = null;
         if (
             selectedEvent.event.incCount1Avg >= settings.readCountThresh && 
@@ -85,6 +89,22 @@
 
             canonicalSeq = null;
             if (geneInfo) {
+                geneInfo.Transcript.sort((a, b) => {
+                    if (a.is_canonical) return -1;
+                    if (b.is_canonical) return 1;
+                    
+                    if (a.gencode_primary === 1 && b.gencode_primary !== 1) return -1;
+                    if (b.gencode_primary === 1 && a.gencode_primary !== 1) return 1;
+                    
+                    const orderA = biotypeSortOrder[a.biotype] || biotypeSortOrder["other"];
+                    const orderB = biotypeSortOrder[b.biotype] || biotypeSortOrder["other"];
+                    if (orderA !== orderB) return orderA - orderB;
+
+                    const lengthA = a.Translation?.length || a.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
+                    const lengthB = b.Translation?.length || b.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
+                    return lengthB - lengthA;
+                });
+
                 const translation = geneInfo.Transcript.find(t => t.is_canonical)?.Translation;
                 if (translation) {
                     try {
@@ -128,26 +148,6 @@
             // Sort by priority:
             // Canonical transcript first, then gencode_primary 1, then biotype, then translation length
             const transcripts = geneInfo.Transcript;
-            transcripts.sort((a, b) => {
-                if (a.is_canonical) return -1;
-                if (b.is_canonical) return 1;
-                
-                if (a.gencode_primary === 1 && b.gencode_primary !== 1) return -1;
-                if (b.gencode_primary === 1 && a.gencode_primary !== 1) return 1;
-                
-                const orderA = biotypeSortOrder[a.biotype] || biotypeSortOrder["other"];
-                const orderB = biotypeSortOrder[b.biotype] || biotypeSortOrder["other"];
-                if (orderA !== orderB) return orderA - orderB;
-
-                const lengthA = a.Translation?.length || a.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
-                const lengthB = b.Translation?.length || b.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
-                return lengthB - lengthA;
-            });
-            console.log(transcripts);
-            inclusionTranscripts = [];
-            inclusionBestCandidate = null;
-            skippedTranscripts = [];
-            skippedBestCandidate = null;
             for (const transcript of transcripts) {
                 if (transcript.biotype === "retained_intron" && selectedEvent.event.eventType !== "RI") continue; // Skip retained intron transcripts if not a RI event
 
