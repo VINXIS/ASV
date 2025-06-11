@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+    import { onMount } from "svelte";
     import { getSpeciesList, type EnsemblSpecies } from "./states/ensembl";
     import { setSelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";

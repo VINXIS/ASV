@@ -76,11 +76,13 @@
         ctx.clearRect(0, 0, width, height);
         
         // Calculate plot dimensions
-        const plotWidth = width / keys.length;
+        const plotWidth = (width - padding) / keys.length;
         
         // Find global min and max values for consistent scaling
         globalStats.min = Infinity;
         globalStats.max = -Infinity;
+
+        let globalMaxDensity = 0;
         
         for (let i = 0; i < keys.length; i++) {
             if (data[i].length === 0) continue;
@@ -98,6 +100,7 @@
 
             // Calculate KDE for this dataset
             const density = kde(data[i], min, max, q3 - q1, stddev);
+            globalMaxDensity = Math.max(globalMaxDensity, ...density.map(d => d.y));
 
             statStorage[keys[i]] = { min, max, q1, median, q3, density, average, stddev };
 
@@ -137,7 +140,6 @@
             
             // Find maximum density for scaling
             const { density } = statStorage[key];
-            const maxDensity = Math.max(...density.map(d => d.y));
             
             // Calculate x-position for this violin
             const xCenter = padding + (index + 0.5) * plotWidth;
@@ -157,7 +159,7 @@
             // Right side of violin
             for (const point of density) {
                 const y = height - padding - ((point.x - globalStats.min) / (globalStats.max - globalStats.min)) * (height - padding - padding);
-                const halfWidth = (point.y / maxDensity) * (plotWidth * 0.4);
+                const halfWidth = (point.y / globalMaxDensity) * (plotWidth * 0.4);
                 ctx.lineTo(xCenter + halfWidth, y);
             }
             
@@ -165,7 +167,7 @@
             for (let i = density.length - 1; i >= 0; i--) {
                 const point = density[i];
                 const y = height - padding - ((point.x - globalStats.min) / (globalStats.max - globalStats.min)) * (height - padding - padding);
-                const halfWidth = (point.y / maxDensity) * (plotWidth * 0.4);
+                const halfWidth = (point.y / globalMaxDensity) * (plotWidth * 0.4);
                 ctx.lineTo(xCenter - halfWidth, y);
             }
             
