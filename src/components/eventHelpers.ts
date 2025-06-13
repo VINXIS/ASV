@@ -463,10 +463,11 @@ export async function eventToCSV(event: Event, includeBiotype: boolean): Promise
                 if (transcript.biotype === "retained_intron" && event.eventType !== "RI") continue;
 
                 const exons = getSplicingExons(event);
+                const position = getPositionsFromData(event);
                 const inclusionExons = exons.filter(exon => exon.inclusion && exon.type !== "junction");
                 const skippedExons = exons.filter(exon => (!exon.inclusion || exon.type === "upstream" || exon.type === "downstream" || exon.type === "flanking") && exon.type !== "junction");
 
-                let isInclusion = inclusionExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
+                let isInclusion = event.eventType !== "RI" ? inclusionExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end)) : transcript.Exon.some(tExon => tExon.start === position.start && tExon.end === position.end);
                 let isSkipped = skippedExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
                 
                 const minInclusionPos = Math.min(...inclusionExons.map(e => e.start));
@@ -474,7 +475,7 @@ export async function eventToCSV(event: Event, includeBiotype: boolean): Promise
                 const minSkippedPos = Math.min(...skippedExons.map(e => e.start));
                 const maxSkippedPos = Math.max(...skippedExons.map(e => e.end));
 
-                if (transcript.Exon.some(tExon => {
+                if (event.eventType !== "RI" && transcript.Exon.some(tExon => {
                     return (
                         (tExon.start >= minInclusionPos && tExon.start <= maxInclusionPos) || 
                         (tExon.end >= minInclusionPos && tExon.end <= maxInclusionPos)

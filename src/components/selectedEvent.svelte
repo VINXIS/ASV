@@ -129,6 +129,7 @@
         }, {} as Record<string, number>);
 
         const exons = getSplicingExons(selectedEvent.event);
+        const position = getPositionsFromData(selectedEvent.event);
 
         if (geneInfo && exons.length > 0) {
             const inclusionExons = exons.filter(exon => exon.inclusion && exon.type !== "junction");
@@ -139,7 +140,7 @@
             for (const transcript of transcripts) {
                 if (transcript.biotype === "retained_intron" && selectedEvent.event.eventType !== "RI") continue; // Skip retained intron transcripts if not a RI event
 
-                let isInclusion = inclusionExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
+                let isInclusion = selectedEvent.event.eventType !== "RI" ? inclusionExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end)) : transcript.Exon.some(tExon => tExon.start === position.start && tExon.end === position.end);
                 let isSkipped = skippedExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
                 const minInclusionPos = Math.min(...inclusionExons.map(e => e.start));
                 const maxInclusionPos = Math.max(...inclusionExons.map(e => e.end));
@@ -147,7 +148,7 @@
                 const maxSkippedPos = Math.max(...skippedExons.map(e => e.end));
 
                 // Check if there are any exons in between inclusion and skipped exons
-                if (transcript.Exon.some(tExon => {
+                if (selectedEvent!.event.eventType !== "RI" && transcript.Exon.some(tExon => {
                     return (
                         (tExon.start >= minInclusionPos && tExon.start <= maxInclusionPos) || 
                         (tExon.end >= minInclusionPos && tExon.end <= maxInclusionPos)
