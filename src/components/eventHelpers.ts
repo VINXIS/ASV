@@ -1,4 +1,5 @@
 import { arrayToString } from "../../utils/tables";
+import { biotypeSortOrder, getGeneInfo, type Transcript } from "./states/ensembl";
 import type { ASSEvent, Event, EventType, MXEEvent, RIEvent, SEEvent } from "./states/strains";
 
 export function getPositionsFromData(data: Event) {
@@ -254,7 +255,7 @@ export function getSplicingExons(data: Event): {
     );
 }
 
-export function eventTypeToCSVHeader(eventType: EventType): string {
+export function eventTypeToCSVHeader(eventType: EventType, includeBiotype: boolean): string {
     const sharedColumns = [
         "ID",
         "Gene Name",
@@ -341,12 +342,14 @@ export function eventTypeToCSVHeader(eventType: EventType): string {
     }
     // Combine shared and specific columns
     const allColumns = [...sharedColumns, ...specificColumns];
+    if (includeBiotype)
+        allColumns.push("Inclusion Best Candidate Biotype", "Skipping Best Candidate Biotype", "Inclusion Best Candidate Transcript ID", "Skipping Best Candidate Transcript ID");
+
     // Join all columns with tab separator
     return allColumns.join(",");
 }
 
-export function eventToCSV(event: Event): string {
-    const positions = getSplicingExons(event);
+export async function eventToCSV(event: Event, includeBiotype: boolean): Promise<string> {
     const eventType = event.eventType;
     const geneName = event.geneName;
     const chr = event.chr;
@@ -354,22 +357,22 @@ export function eventToCSV(event: Event): string {
     const id = eventID(event);
     
     // Shared columns
-    const sharedColumns = [
+    const sharedColumns: string[] = [
         id,
         geneName,
         chr,
         strand,
-        event.incCount1,
-        event.skipCount1,
-        event.incCount2,
-        event.skipCount2,
-        event.incFormLen,
-        event.skipFormLen,
-        event.pVal,
-        event.FDR,
-        event.psi1,
-        event.psi2,
-        event.psiDiff,
+        arrayToString(event.incCount1, true),
+        arrayToString(event.skipCount1, true),
+        arrayToString(event.incCount2, true),
+        arrayToString(event.skipCount2, true),
+        event.incFormLen.toString(),
+        event.skipFormLen.toString(),
+        event.pVal.toString(),
+        event.FDR.toString(),
+        arrayToString(event.psi1, true),
+        arrayToString(event.psi2, true),
+        event.psiDiff.toString(),
     ];
     
     // Event specific columns
@@ -384,10 +387,10 @@ export function eventToCSV(event: Event): string {
                 seData.upstreamExonEnd.toString(),
                 seData.downstreamExonStart.toString(),
                 seData.downstreamExonEnd.toString(),
-                arrayToString(seData.upstreamToTargetCount),
-                arrayToString(seData.targetToDownstreamCount),
-                arrayToString(seData.targetCount),
-                arrayToString(seData.upstreamToDownstreamCount)
+                arrayToString(seData.upstreamToTargetCount, true),
+                arrayToString(seData.targetToDownstreamCount, true),
+                arrayToString(seData.targetCount, true),
+                arrayToString(seData.upstreamToDownstreamCount, true)
             ];
             break;
         case "MXE":
@@ -401,12 +404,12 @@ export function eventToCSV(event: Event): string {
                 mxeData.upstreamExonEnd.toString(),
                 mxeData.downstreamExonStart.toString(),
                 mxeData.downstreamExonEnd.toString(),
-                arrayToString(mxeData.upstreamToFirstCount),
-                arrayToString(mxeData.firstToDownstreamCount),
-                arrayToString(mxeData.firstCount),
-                arrayToString(mxeData.upstreamToSecondCount),
-                arrayToString(mxeData.secondToDownstreamCount),
-                arrayToString(mxeData.secondCount)
+                arrayToString(mxeData.upstreamToFirstCount, true),
+                arrayToString(mxeData.firstToDownstreamCount, true),
+                arrayToString(mxeData.firstCount, true),
+                arrayToString(mxeData.upstreamToSecondCount, true),
+                arrayToString(mxeData.secondToDownstreamCount, true),
+                arrayToString(mxeData.secondCount, true)
             ];
             break;
         case "A3SS":
@@ -419,10 +422,10 @@ export function eventToCSV(event: Event): string {
                 assData.shortExonEnd.toString(),
                 assData.flankingExonStart.toString(),
                 assData.flankingExonEnd.toString(),
-                arrayToString(assData.acrossShortBoundaryCount),
-                arrayToString(assData.longToFlankingCount),
-                arrayToString(assData.exclusiveToLongCount),
-                arrayToString(assData.shortToFlankingCount)
+                arrayToString(assData.acrossShortBoundaryCount, true),
+                arrayToString(assData.longToFlankingCount, true),
+                arrayToString(assData.exclusiveToLongCount, true),
+                arrayToString(assData.shortToFlankingCount, true)
             ];
             break;
         case "RI":
@@ -434,17 +437,80 @@ export function eventToCSV(event: Event): string {
                 riData.upstreamExonEnd.toString(),
                 riData.downstreamExonStart.toString(),
                 riData.downstreamExonEnd.toString(),
-                arrayToString(riData.upstreamToIntronCount),
-                arrayToString(riData.intronToDownstreamCount),
-                arrayToString(riData.intronCount),
-                arrayToString(riData.upstreamToDownstreamCount)
+                arrayToString(riData.upstreamToIntronCount, true),
+                arrayToString(riData.intronToDownstreamCount, true),
+                arrayToString(riData.intronCount, true),
+                arrayToString(riData.upstreamToDownstreamCount, true)
             ];
             break;
         default:
             throw new Error(`Unknown event type: ${eventType}`);
     }
+    
     // Combine shared and specific columns
-    const allColumns = [...sharedColumns, ...specificColumns];
-    // Join all columns with tab separator
+    const allColumns: string[] = [...sharedColumns, ...specificColumns];
+    
+    if (includeBiotype) {
+        try {
+            const geneInfo = await getGeneInfo(event.geneName);
+
+            const inclusionTranscripts: Transcript[] = [];
+            const skippedTranscripts: Transcript[] = [];
+            let inclusionBestCandidate: Transcript | null = null;
+            let skippedBestCandidate: Transcript | null = null;
+
+            for (const transcript of geneInfo.Transcript) {
+                if (transcript.biotype === "retained_intron" && event.eventType !== "RI") continue;
+
+                const exons = getSplicingExons(event);
+                const inclusionExons = exons.filter(exon => exon.inclusion && exon.type !== "junction");
+                const skippedExons = exons.filter(exon => (!exon.inclusion || exon.type === "upstream" || exon.type === "downstream" || exon.type === "flanking") && exon.type !== "junction");
+
+                let isInclusion = inclusionExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
+                let isSkipped = skippedExons.every(exon => transcript.Exon.some(tExon => tExon.start === exon.start && tExon.end === exon.end));
+                
+                const minInclusionPos = Math.min(...inclusionExons.map(e => e.start));
+                const maxInclusionPos = Math.max(...inclusionExons.map(e => e.end));
+                const minSkippedPos = Math.min(...skippedExons.map(e => e.start));
+                const maxSkippedPos = Math.max(...skippedExons.map(e => e.end));
+
+                if (transcript.Exon.some(tExon => {
+                    return (
+                        (tExon.start >= minInclusionPos && tExon.start <= maxInclusionPos) || 
+                        (tExon.end >= minInclusionPos && tExon.end <= maxInclusionPos)
+                    ) && !inclusionExons.some(e => e.start === tExon.start && e.end === tExon.end); 
+                }))
+                    isInclusion = false;
+                if (isInclusion)
+                    inclusionTranscripts.push(transcript);
+
+                if (transcript.Exon.some(tExon => {
+                    return (
+                        (tExon.start >= minSkippedPos && tExon.start <= maxSkippedPos) || 
+                        (tExon.end >= minSkippedPos && tExon.end <= maxSkippedPos)
+                    ) && !skippedExons.some(e => e.start === tExon.start && e.end === tExon.end); 
+                }))
+                    isSkipped = false;
+                if (isSkipped)
+                    skippedTranscripts.push(transcript);
+            }
+            
+            if (inclusionTranscripts.length > 0)
+                inclusionBestCandidate = inclusionTranscripts[0];
+            if (skippedTranscripts.length > 0)
+                skippedBestCandidate = skippedTranscripts[0];
+
+            allColumns.push(
+                inclusionBestCandidate ? inclusionBestCandidate.biotype : "N/A",
+                skippedBestCandidate ? skippedBestCandidate.biotype : "N/A",
+                inclusionBestCandidate ? `${inclusionBestCandidate.id}.${inclusionBestCandidate.version}` : "N/A",
+                skippedBestCandidate ? `${skippedBestCandidate.id}.${skippedBestCandidate.version}` : "N/A",
+            );
+        } catch (error) {
+            console.warn(`Failed to fetch gene info for ${event.geneName}, using default values.`);
+            allColumns.push("N/A", "N/A", "N/A", "N/A");
+        }
+    }
+
     return allColumns.join(",");
 }

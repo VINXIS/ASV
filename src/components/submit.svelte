@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, setStrains, eventTypes, getStrains, getStrainLength, getBasicStrainInfo } from "./states/strains";
+    import { type Strain, type ASSEvent, type MXEEvent, type RIEvent, type SEEvent, type EventType, type Event as ASEvent, setStrains, eventTypes, getStrains, getStrainLength, getBasicStrainInfo, getFilteredStrains } from "./states/strains";
     import { average, parseNumberArray } from "../../utils/numbers";
     import { findValueInRow, findNumberInRow, createHeaderMapping } from "../../utils/tables";
     import { readFileAsync } from "../../utils/files";
@@ -10,6 +10,7 @@
     let isLoading = false;
     let errorMessage = "";
     let successMessage = "";
+    let exportProgress = "";
     let strainCount = getStrainLength();
     
     const filePattern = /\.(MATS\.JCEC\.txt)$/i;
@@ -286,24 +287,58 @@
         return "Unknown_Strain";
     }
 
-    function exportCSV() {
-        getStrains().forEach(strain => {
-            eventTypes.forEach(eventType => {
-                const events = strain[eventType];
-                if (events.length === 0) return;
+    async function exportCSV(includeBiotypes: boolean) {
+        exportProgress = "";
+        const strains = getFilteredStrains();
+        
+        for (let strainIndex = 0; strainIndex < strains.length; strainIndex++) {
+            const strain = strains[strainIndex];
+            
+            for (let typeIndex = 0; typeIndex < eventTypes.length; typeIndex++) {
+                const eventType = eventTypes[typeIndex];
+                const events = strain[1].events.filter(event => event.eventType === eventType);
+                if (events.length === 0) continue;
 
-                const csvHeaders = eventTypeToCSVHeader(eventType);
-                const csvContent = events.map(eventToCSV).join("\n");
+                const csvHeaders = eventTypeToCSVHeader(eventType, includeBiotypes);
+                let csvContent = "";
 
+                // Concurrently run with promise.all of batches of events
+                const batches = events.reduce((acc, event, index) => {
+                    const batchIndex = Math.floor(index / 25); // Adjust batch size as needed
+                    if (!acc[batchIndex]) acc[batchIndex] = [];
+                    acc[batchIndex].push(event);
+                    return acc;
+                }, [] as ASEvent[][]);
+                let done = 0;
+                
+                for (let i = 0; i < batches.length; i++) {
+                    const batch = batches[i];
+                    const eventPromises = batch.map(event => eventToCSV(event, includeBiotypes));
+                    const batchResults = await Promise.all(eventPromises);
+                    for (const csvRow of batchResults) {
+                        if (csvRow)
+                            csvContent += csvRow + "\n";
+                        else
+                            console.warn(`Skipping empty row for event in strain ${strain[0]}`);
+                    }
+                    
+                    // Update progress
+                    done += batch.length;
+                    exportProgress = `Exporting ${strain[0]} - ${eventType} (${done}/${events.length})`;
+                }
+
+                // Create and download the file
                 const blob = new Blob([`${csvHeaders}\n${csvContent}`], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${strain.name}_${eventType}.csv`;
+                a.download = `${strain[0]}_${eventType}.csv`;
                 a.click();
                 URL.revokeObjectURL(url);
-            });
-        });
+            }
+        }
+        
+        exportProgress = "Export completed!";
     }
 </script>
 
@@ -339,7 +374,9 @@
                 on:change={handleFolderUpload}
             />
             <button on:click={() => folderInput.click()}>Add Folder</button>
-            <button on:click={exportCSV}>Export CSV files</button>
+            <button on:click={async () => await exportCSV(false)}>Export CSV files of filtered events</button>
+            <button on:click={async () => await exportCSV(true)}>Export CSV files (with biotypes) of filtered events</button>
+            {exportProgress}
         </div>
     {/if}
     

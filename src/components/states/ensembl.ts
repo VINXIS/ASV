@@ -85,7 +85,14 @@ export interface Translation {
     id: string;
     species: string;
 }
-  
+
+const cache: {
+    sequences: Record<string, string>;
+    geneInfos: Record<string, SymbolLookup>;
+} = {
+    sequences: {},
+    geneInfos: {},
+};
 
 function getReq<T>(url: string) {
     return fetch(url)
@@ -111,11 +118,16 @@ export function getSequenceRegion(
 
     const chromosomeFormatted = chromosome.replace('chr', '');
     const url = `${urlPath}/${settings.selectedSpecies}/${chromosomeFormatted}:${start}-${end}:${strand}?content-type=application/json`;
+    
+    if (cache.sequences[url])
+        return Promise.resolve(cache.sequences[url]);
+
     return getEnsemblReq<{ seq: string } | { error: string }>(url)
     .then((data) => {
-        if ('seq' in data)
+        if ('seq' in data) {
+            cache.sequences[url] = data.seq;
             return data.seq;
-        else if ('error' in data)
+        } else if ('error' in data)
             throw new Error(data.error);
         else
             throw new Error('Unexpected response format');
@@ -130,11 +142,29 @@ export function getGeneInfo(geneId: string): Promise<SymbolLookup> {
     const urlPath = 'lookup/symbol';
     const url = `${urlPath}/${settings.selectedSpecies}/${geneId}?expand=1;content-type=application/json`;
 
+    if (cache.geneInfos[url])
+        return Promise.resolve(cache.geneInfos[url]);
+
     return getEnsemblReq<SymbolLookup | { error: string }>(url)
     .then((data) => {
         if ('error' in data)
             throw new Error(data.error);
         else if ('species' in data && 'id' in data) {
+            data.Transcript.sort((a, b) => {
+                if (a.is_canonical) return -1;
+                if (b.is_canonical) return 1;
+                
+                if (a.gencode_primary === 1 && b.gencode_primary !== 1) return -1;
+                if (b.gencode_primary === 1 && a.gencode_primary !== 1) return 1;
+                
+                const orderA = biotypeSortOrder[a.biotype] || biotypeSortOrder["other"];
+                const orderB = biotypeSortOrder[b.biotype] || biotypeSortOrder["other"];
+                if (orderA !== orderB) return orderA - orderB;
+
+                const lengthA = a.Translation?.length || a.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
+                const lengthB = b.Translation?.length || b.Exon.reduce((sum, exon) => sum + (exon.end - exon.start + 1), 0);
+                return lengthB - lengthA;
+            });
             // Ok so basically this was really because NCBI removes the stop codon from the CDS region, while Ensembl does not, and for now I am going to just keep the stop codons
             // // For each transcript, if strand if 1, subtract 3 from end in translation. If strand is -1, add 3 to start in translation
             // // This is after empirically comparing the CDS regions between Ensembl and NCBI, and finding that Ensembl's CDS regions are shifted by 3 bases.
@@ -146,6 +176,7 @@ export function getGeneInfo(geneId: string): Promise<SymbolLookup> {
             //             transcript.Translation.start += 3;
             //     }
             // });
+            cache.geneInfos[url] = data;
             return data;
         } else
             throw new Error('Unexpected response format');
