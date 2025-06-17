@@ -12,7 +12,7 @@
     let selectedEvent = getSelectedEvent();
     let hoveredPoint: Event | null = null;
     let previousHoveredPoint: Event | null = null;
-    let useReadCountFilter = $state(false);
+    let useReadCountFilter = $state(true);
     let filteredData = setFilteredData();
     const margin = { top: 50, right: 50, bottom: 50, left: 60 };
 
