@@ -818,6 +818,7 @@
                         keys={["Ψ1", "Ψ2"]}
                         data={[filteredEvents.flatMap(event => event.event.psi1), filteredEvents.flatMap(event => event.event.psi2)]}
                         updateOnFilter="selectedEvent"
+                        enforcedStats={{ min: 0, max: 1 }}
                     ></ViolinChart>
                     <PieChart
                         data={eventCounts}

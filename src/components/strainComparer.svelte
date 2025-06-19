@@ -41,6 +41,7 @@
                     keys={["Ψ1", "Ψ2"]}
                     data={[strainViolinData[`${strain.name}_psi1`], strainViolinData[`${strain.name}_psi2`]]}
                     updateOnFilter="strain"
+                    enforcedStats={{ min: 0, max: 1 }}
                 ></ViolinChart>
                 <PieChart
                     data={strainPieData[strain.name]}

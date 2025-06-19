@@ -6,7 +6,7 @@
     import { rootObserver } from '../rootObserver';
     import { updatedSelectedEvent } from '../states/selectedEvent';
 
-    const { data, keys, updateOnFilter }: { data: number[][]; keys: string[]; updateOnFilter?: "strain" | "selectedEvent" } = $props();
+    const { data, keys, updateOnFilter, enforcedStats = { min: Infinity, max: -Infinity } }: { data: number[][]; keys: string[]; updateOnFilter?: "strain" | "selectedEvent", enforcedStats: { min: number; max: number } } = $props();
 
     const statStorage: Record<string, {
         min: number;
@@ -21,7 +21,7 @@
     const globalStats: {
         min: number;
         max: number;
-    } = { min: Infinity, max: -Infinity };
+    } = { ...enforcedStats };
     let canvas: HTMLCanvasElement | null = null;
     const padding = 40;
     const yTickCount = 5;
@@ -79,8 +79,8 @@
         const plotWidth = (width - padding) / keys.length;
         
         // Find global min and max values for consistent scaling
-        globalStats.min = Infinity;
-        globalStats.max = -Infinity;
+        globalStats.min = enforcedStats.min;
+        globalStats.max = enforcedStats.max;
 
         let globalMaxDensity = 0;
         
