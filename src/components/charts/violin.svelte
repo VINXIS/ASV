@@ -4,7 +4,7 @@
     import { clearTooltip, setTooltipHTML } from '../states/tooltip';
     import { strainEventEmitter } from '../states/strains';
     import { rootObserver } from '../rootObserver';
-  import { updatedSelectedEvent } from '../states/selectedEvent';
+    import { updatedSelectedEvent } from '../states/selectedEvent';
 
     const { data, keys, updateOnFilter }: { data: number[][]; keys: string[]; updateOnFilter?: "strain" | "selectedEvent" } = $props();
 
@@ -244,11 +244,11 @@
                     if (point.x >= yValue) {
                         // If neither of them are the same, interpolate
                         if (point.x === yValue) {
-                            densityInfos += `<strong>${key}</strong>: ${tooltipNumber(point.y)}; `;
+                            densityInfos += `<span style="color: ${colourScale[keys.indexOf(key) % colourScale.length]}"><strong>${key}</strong>: ${tooltipNumber(point.y)}; </span>`;
                         } else {
                             const densityVal = closestMinValue.y * (point.x - yValue) / (point.x - closestMinValue.x) + point.y * (closestMinValue.x - yValue) / (closestMinValue.x - point.x);
                             if (!isNaN(densityVal) && isFinite(densityVal))
-                                densityInfos += `<strong>${key}</strong>: ${tooltipNumber(densityVal)}; `;
+                                densityInfos += `<span style="color: ${colourScale[keys.indexOf(key) % colourScale.length]}"><strong>${key}</strong>: ${tooltipNumber(densityVal)}; </span>`;
                         }
                         break;
                     }
