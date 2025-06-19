@@ -283,23 +283,23 @@
         const posRange = adjustedMax - adjustedMin;
         
         // Define visual properties
-        // Scale height by number of transcripts
         const transcriptCount = transcripts.length;
-
-        canvas.height = 300; // Set initial height
-
-        let [x, y, width, height] = [25, 100, canvas.width - 100, canvas.height - 150];
-
-        let exonHeight = height * 0.3 / transcriptCount;
-
-        // Make canvas height dynamic based on number of transcripts
-        while (exonHeight < 10) {
-            canvas.height = canvas.height + 25;
-            height = canvas.height - 150;
-            exonHeight = height * 0.3 / transcriptCount;
-        }
         
-        const pathGap = Math.min(height * 0.05, 10);
+        // Calculate required dimensions first
+        const topPadding = 100;
+        const bottomPadding = 50; // Fixed bottom padding
+        const minExonHeight = 10;
+        const pathGap = Math.min(10, Math.max(3, 50 / transcriptCount)); // Adaptive gap
+        
+        // Calculate total height needed for all transcript rows plus inclusion/skipped paths
+        const totalRows = transcriptCount + 2; // transcripts + inclusion + skipped paths
+        let exonHeight = Math.max(minExonHeight, 20 / Math.sqrt(transcriptCount)); // Adaptive exon height
+        
+        const contentHeight = totalRows * exonHeight + (totalRows - 1) * pathGap;
+        canvas.height = topPadding + contentHeight + bottomPadding;
+        
+        // Define layout
+        const [x, y, width] = [25, topPadding, canvas.width - 100];
         const yInclusionPath = y + (exonHeight + pathGap) * transcriptCount + exonHeight / 2;
         const ySkippedPath = y + (exonHeight + pathGap) * (transcriptCount + 1) + exonHeight / 2;
 
@@ -424,11 +424,11 @@
         // Draw splicing type label
         ctx.fillText(selectedEvent.event.eventType, x + width/2, y - 50);
         
-        // Draw strand indicator
+        // Draw strand indicator with fixed position relative to content
         const strandSymbol = selectedEvent.event.strand === '+' ? '→' : '←';
-        ctx.fillText(`${strandSymbol} ${selectedEvent.event.strand} strand`, x + width/2, y + height + 20);
+        ctx.fillText(`${strandSymbol} ${selectedEvent.event.strand} strand`, x + width/2, ySkippedPath + exonHeight/2 + 30);
         
-        // Optional: Add appropriate labels depending on splicing type
+        // Labels for inclusion/skipped paths
         ctx.fillStyle = colours.inclusion;
         ctx.fillText(`Inclusion`, width + x + 32, yInclusionPath);
         ctx.fillStyle = colours.skipped;
