@@ -10,7 +10,7 @@ export const settings: {
     psiDiffThresh: number;
     extraneousPsiLimits: boolean;
 } = {
-    selectedSpecies: "human",
+    selectedSpecies: "homo_sapiens",
     selectedChr: "All",
     selectedEventType: "All",
 

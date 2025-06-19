@@ -35,7 +35,7 @@
     });
     
     function resetSettings() {
-        settings.selectedSpecies = "human";
+        settings.selectedSpecies = "homo_sapiens";
         settings.selectedChr = "All";
         settings.selectedEventType = "All";
 
@@ -131,7 +131,7 @@
                 onchange={() => {}}
             >
                 {#each speciesList as species}
-                    <option value={species.common_name}>{species.display_name} ({species.name}/{species.assembly})</option>
+                    <option value={species.name}>{species.display_name} ({species.name}/{species.assembly})</option>
                 {/each}
             </select>  
         </div>
