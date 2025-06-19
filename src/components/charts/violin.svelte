@@ -247,7 +247,8 @@
                             densityInfos += `<strong>${key}</strong>: ${tooltipNumber(point.y)}; `;
                         } else {
                             const densityVal = closestMinValue.y * (point.x - yValue) / (point.x - closestMinValue.x) + point.y * (closestMinValue.x - yValue) / (closestMinValue.x - point.x);
-                            densityInfos += `<strong>${key}</strong>: ${isNaN(densityVal) || !isFinite(densityVal) ? "N/A" : tooltipNumber(densityVal)}; `;
+                            if (!isNaN(densityVal) && isFinite(densityVal))
+                                densityInfos += `<strong>${key}</strong>: ${tooltipNumber(densityVal)}; `;
                         }
                         break;
                     }
