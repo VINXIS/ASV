@@ -1,5 +1,5 @@
 import { arrayToString } from "../../utils/tables";
-import { biotypeSortOrder, getGeneInfo, type Transcript } from "./states/ensembl";
+import { getGeneInfo, type Transcript } from "./states/ensembl";
 import type { ASSEvent, Event, EventType, MXEEvent, RIEvent, SEEvent } from "./states/strains";
 
 export function getPositionsFromData(data: Event) {
@@ -452,7 +452,7 @@ export async function eventToCSV(event: Event, includeBiotype: boolean): Promise
     
     if (includeBiotype) {
         try {
-            const geneInfo = await getGeneInfo(event.geneName);
+            const geneInfo = await getGeneInfo(event.geneName, event.eventType === "RI");
 
             const inclusionTranscripts: Transcript[] = [];
             const skippedTranscripts: Transcript[] = [];

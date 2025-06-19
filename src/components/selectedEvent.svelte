@@ -8,7 +8,7 @@
     import { getSelectedEvent, setSelectedEvent, updatedSelectedEvent, type SelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
     import { arrayToString } from "../../utils/tables";
-    import { biotypeSortOrder, getGeneInfo, getSequenceRegion, type Exon, type SymbolLookup, type Transcript } from "./states/ensembl";
+    import { getGeneInfo, getSequenceRegion, type Exon, type SymbolLookup, type Transcript } from "./states/ensembl";
     import { getTooltipHTML, setTooltipHTML } from "./states/tooltip";
 
     let canvas: HTMLCanvasElement | null = null;
@@ -87,7 +87,7 @@
         if (currGeneName !== selectedEvent.event.geneName) {
             geneInfo = null;
             try {
-                geneInfo = await getGeneInfo(selectedEvent.event.geneName);
+                geneInfo = await getGeneInfo(selectedEvent.event.geneName, selectedEvent.event.eventType === "RI");
             } catch (e) {
                 console.error("Failed to fetch gene info or RNA sequence:", e);
                 geneInfo = null;

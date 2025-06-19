@@ -138,7 +138,7 @@ export function getSequenceRegion(
     });
 }
 
-export function getGeneInfo(geneId: string): Promise<SymbolLookup> {
+export function getGeneInfo(geneId: string, isRetainedIntron = false): Promise<SymbolLookup> {
     const urlPath = 'lookup/symbol';
     const url = `${urlPath}/${settings.selectedSpecies}/${geneId}?expand=1;content-type=application/json`;
 
@@ -156,6 +156,11 @@ export function getGeneInfo(geneId: string): Promise<SymbolLookup> {
                 
                 if (a.gencode_primary === 1 && b.gencode_primary !== 1) return -1;
                 if (b.gencode_primary === 1 && a.gencode_primary !== 1) return 1;
+
+                if (isRetainedIntron) { // Sort retained intron biotypes to the start if isRetainedIntron is true
+                    if (a.biotype === "retained_intron" && b.biotype !== "retained_intron") return -1;
+                    if (b.biotype === "retained_intron" && a.biotype !== "retained_intron") return 1;
+                }
                 
                 const orderA = biotypeSortOrder[a.biotype] || biotypeSortOrder["other"];
                 const orderB = biotypeSortOrder[b.biotype] || biotypeSortOrder["other"];
