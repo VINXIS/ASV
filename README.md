@@ -1,6 +1,7 @@
 # ASV
 Alternative Splicing Visualizer (Primarily handling rMATS data)
-Needs node + npm installed
+
+Needs [node + npm](https://nodejs.org) installed
 
 # Installation
 ```
