@@ -18,13 +18,16 @@
 
     let inclusionTranscripts: Transcript[] = [];
     let inclusionBestCandidate: Transcript | null = null;
-    let inclusionBestCandidateSeq: string | null = null;
+    let inclusionBestCandidateCDS: string | null = null;
+    let inclusionBestCandidateMRNA: string | null = null;
 
     let skippedTranscripts: Transcript[] = [];
     let skippedBestCandidate: Transcript | null = null;
-    let skippedBestCandidateSeq: string | null = null;
+    let skippedBestCandidateCDS: string | null = null;
+    let skippedBestCandidateMRNA: string | null = null;
 
-    let canonicalSeq: string | null = null;
+    let canonicalCDS: string | null = null;
+    let canonicalMRNA: string | null = null;
 
     let significance: "Upregulated" | "Downregulated" | "Not Significant" | null = null;
 
@@ -64,13 +67,15 @@
         
         inclusionTranscripts = [];
         inclusionBestCandidate = null;
-        inclusionBestCandidateSeq = null;
+        inclusionBestCandidateCDS = null;
+        inclusionBestCandidateMRNA = null;
 
         skippedTranscripts = [];
         skippedBestCandidate = null;
-        skippedBestCandidateSeq = null;
+        skippedBestCandidateCDS = null;
+        skippedBestCandidateMRNA = null;
 
-        canonicalSeq = null;
+        canonicalCDS = null;
 
         significance = null;
         if (
@@ -93,15 +98,24 @@
                 geneInfo = null;
             }
 
-            canonicalSeq = null;
+            canonicalCDS = null;
             if (geneInfo) {
-                const translation = geneInfo.Transcript.find(t => t.is_canonical)?.Translation;
-                if (translation) {
+                const canonicalTranscript = geneInfo.Transcript.find(t => t.is_canonical);
+                const translation = canonicalTranscript?.Translation;
+                if (canonicalTranscript) {
                     try {
-                        canonicalSeq = await getSequenceRegion(geneInfo.seq_region_name, translation.start, translation.end, geneInfo.strand);
+                        canonicalMRNA = await Promise.all(canonicalTranscript.Exon.map(exon => getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand))).then(sequences => sequences.join(""));
                     } catch (e) {
-                        console.error("Failed to fetch canonical sequence:", e);
-                        canonicalSeq = null;
+                        console.error("Failed to fetch canonical mRNA sequence:", e);
+                        canonicalMRNA = null;
+                    }
+                    if (translation) {
+                        try {
+                            canonicalCDS = await getSequenceRegion(geneInfo.seq_region_name, translation.start, translation.end, geneInfo.strand);
+                        } catch (e) {
+                            console.error("Failed to fetch canonical sequence:", e);
+                            canonicalCDS = null;
+                        }
                     }
                 }
             }
@@ -173,36 +187,44 @@
             if (skippedTranscripts.length > 0)
                 skippedBestCandidate = skippedTranscripts[0];
 
-            if (inclusionBestCandidate?.is_canonical)
-                inclusionBestCandidateSeq = canonicalSeq;    
-            else if (inclusionBestCandidate && inclusionBestCandidate.Translation) {
-                getSequenceRegion(
-                    inclusionBestCandidate.seq_region_name,
-                    inclusionBestCandidate.Translation.start,
-                    inclusionBestCandidate.Translation.end,
-                    geneInfo.strand,
-                ).then(seq => {
-                    inclusionBestCandidateSeq = seq;
-                }).catch(err => {
-                    console.error("Failed to fetch inclusion best candidate sequence:", err);
-                    inclusionBestCandidateSeq = null;
-                });
+            if (inclusionBestCandidate?.is_canonical) {
+                inclusionBestCandidateCDS = canonicalCDS;
+                inclusionBestCandidateMRNA = canonicalMRNA;
+            } else if (inclusionBestCandidate) {
+                inclusionBestCandidateMRNA = await Promise.all(inclusionBestCandidate.Exon.map(exon => getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand))).then(sequences => sequences.join(""));
+                if (inclusionBestCandidate.Translation) {
+                    getSequenceRegion(
+                        inclusionBestCandidate.seq_region_name,
+                        inclusionBestCandidate.Translation.start,
+                        inclusionBestCandidate.Translation.end,
+                        geneInfo.strand,
+                    ).then(seq => {
+                        inclusionBestCandidateCDS = seq;
+                    }).catch(err => {
+                        console.error("Failed to fetch inclusion best candidate sequence:", err);
+                        inclusionBestCandidateCDS = null;
+                    });
+                }
             }
 
-            if (skippedBestCandidate?.is_canonical)
-                skippedBestCandidateSeq = canonicalSeq;
-            else if (skippedBestCandidate && skippedBestCandidate.Translation) {
-                getSequenceRegion(
-                    skippedBestCandidate.seq_region_name,
-                    skippedBestCandidate.Translation.start,
-                    skippedBestCandidate.Translation.end,
-                    geneInfo.strand,
-                ).then(seq => {
-                    skippedBestCandidateSeq = seq;
-                }).catch(err => {
-                    console.error("Failed to fetch skipped best candidate sequence:", err);
-                    skippedBestCandidateSeq = null;
-                });
+            if (skippedBestCandidate?.is_canonical) {
+                skippedBestCandidateCDS = canonicalCDS;
+                skippedBestCandidateMRNA = canonicalMRNA;
+            } else if (skippedBestCandidate) {
+                skippedBestCandidateMRNA = await Promise.all(skippedBestCandidate.Exon.map(exon => getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand))).then(sequences => sequences.join(""));
+                if (skippedBestCandidate.Translation) {
+                    getSequenceRegion(
+                        skippedBestCandidate.seq_region_name,
+                        skippedBestCandidate.Translation.start,
+                        skippedBestCandidate.Translation.end,
+                        geneInfo.strand,
+                    ).then(seq => {
+                        skippedBestCandidateCDS = seq;
+                    }).catch(err => {
+                        console.error("Failed to fetch skipped best candidate sequence:", err);
+                        skippedBestCandidateCDS = null;
+                    });
+                }
             }
         }
 
@@ -644,21 +666,34 @@
                             N/A
                         {/if}
                     </p>
-                    {#if canonicalSeq}
+                    {#if canonicalCDS && canonicalMRNA}
                         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                         <p
                             style="color: {colours.canonical}"
                             class="rna-seq"
-                            onclick={() => copyToClipboard(canonicalSeq!)}
-                            onkeydown={() => copyToClipboard(canonicalSeq!)}
+                            onclick={() => copyToClipboard(canonicalCDS!)}
+                            onkeydown={() => copyToClipboard(canonicalCDS!)}
                             aria-label="Click to copy RNA sequence"
                         >
-                            <strong>Canonical CDS ({canonicalSeq.length} nt)<br>(click to copypaste):</strong>
+                            <strong>Canonical CDS ({canonicalCDS.length} nt)<br>(click to copypaste):</strong>
                             <span class="clickable">
-                                {canonicalSeq}
+                                {canonicalCDS}
                             </span>
                             <br>
-                            <strong>Start Codon:</strong> {canonicalSeq.slice(0, 3)} | <strong>Stop Codon:</strong> {canonicalSeq.slice(-3)}
+                            <strong>Start Codon:</strong> {canonicalCDS.slice(0, 3)} | <strong>Stop Codon:</strong> {canonicalCDS.slice(-3)}
+                        </p>
+                        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                        <p
+                            style="color: {colours.canonical}"
+                            class="rna-seq"
+                            onclick={() => copyToClipboard(canonicalMRNA!)}
+                            onkeydown={() => copyToClipboard(canonicalMRNA!)}
+                            aria-label="Click to copy mRNA sequence"
+                        >
+                            <strong>Canonical mRNA ({canonicalMRNA.length} nt)<br>(click to copypaste):</strong>
+                            <span class="clickable">
+                                {canonicalMRNA}
+                            </span>
                         </p>
                     {/if}
                     <p style="color: {colours.inclusion}">
@@ -693,21 +728,35 @@
                             <strong>Biotype:</strong>
                             {inclusionBestCandidate.biotype}
                             <br>
-                            {#if inclusionBestCandidateSeq}
+                            {#if inclusionBestCandidateCDS && inclusionBestCandidateMRNA}
                                 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                                 <span
                                     class="rna-seq"
                                     aria-label="Click to copy RNA sequence"
-                                    onclick={() => copyToClipboard(inclusionBestCandidateSeq!)}
-                                    onkeydown={() => copyToClipboard(inclusionBestCandidateSeq!)}
+                                    onclick={() => copyToClipboard(inclusionBestCandidateCDS!)}
+                                    onkeydown={() => copyToClipboard(inclusionBestCandidateCDS!)}
                                 >
-                                    <strong>Inclusion CDS ({inclusionBestCandidateSeq.length} nt)<br>(click to copypaste):</strong>
+                                    <strong>Inclusion CDS ({inclusionBestCandidateCDS.length} nt)<br>(click to copypaste):</strong>
                                     <span class="clickable">
-                                        {inclusionBestCandidateSeq}
+                                        {inclusionBestCandidateCDS}
                                     </span>
                                     <br>
-                                    <strong>Start Codon:</strong> {inclusionBestCandidateSeq.slice(0, 3)} | <strong>Stop Codon:</strong> {inclusionBestCandidateSeq.slice(-3)}
+                                    <strong>Start Codon:</strong> {inclusionBestCandidateCDS.slice(0, 3)} | <strong>Stop Codon:</strong> {inclusionBestCandidateCDS.slice(-3)}
+                                </span>
+                                <br>
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                <span
+                                    class="rna-seq"
+                                    aria-label="Click to copy mRNA sequence"
+                                    onclick={() => copyToClipboard(inclusionBestCandidateMRNA!)}
+                                    onkeydown={() => copyToClipboard(inclusionBestCandidateMRNA!)}
+                                >
+                                    <strong>Inclusion mRNA ({inclusionBestCandidateMRNA.length} nt)<br>(click to copypaste):</strong>
+                                    <span class="clickable">
+                                        {inclusionBestCandidateMRNA}
+                                    </span>
                                 </span>
                             {/if}
                         {/if}
@@ -744,21 +793,35 @@
                             <strong>Biotype:</strong>
                             {skippedBestCandidate.biotype}
                             <br>
-                            {#if skippedBestCandidateSeq}
+                            {#if skippedBestCandidateCDS && skippedBestCandidateMRNA}
                                 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                                 <span
                                     class="rna-seq"
                                     aria-label="Click to copy RNA sequence"
-                                    onclick={() => copyToClipboard(skippedBestCandidateSeq!)}
-                                    onkeydown={() => copyToClipboard(skippedBestCandidateSeq!)}
+                                    onclick={() => copyToClipboard(skippedBestCandidateCDS!)}
+                                    onkeydown={() => copyToClipboard(skippedBestCandidateCDS!)}
                                 >
-                                    <strong>Skipped CDS ({skippedBestCandidateSeq.length} nt)<br>(click to copypaste):</strong>
+                                    <strong>Skipped CDS ({skippedBestCandidateCDS.length} nt)<br>(click to copypaste):</strong>
                                     <span class="clickable">
-                                        {skippedBestCandidateSeq}
+                                        {skippedBestCandidateCDS}
                                     </span>
                                     <br>
-                                    <strong>Start Codon:</strong> {skippedBestCandidateSeq.slice(0, 3)} | <strong>Stop Codon:</strong> {skippedBestCandidateSeq.slice(-3)}
+                                    <strong>Start Codon:</strong> {skippedBestCandidateCDS.slice(0, 3)} | <strong>Stop Codon:</strong> {skippedBestCandidateCDS.slice(-3)}
+                                </span>
+                                <br>
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                <span
+                                    class="rna-seq"
+                                    aria-label="Click to copy mRNA sequence"
+                                    onclick={() => copyToClipboard(skippedBestCandidateMRNA!)}
+                                    onkeydown={() => copyToClipboard(skippedBestCandidateMRNA!)}
+                                >
+                                    <strong>Skipped mRNA ({skippedBestCandidateMRNA.length} nt)<br>(click to copypaste):</strong>
+                                    <span class="clickable">
+                                        {skippedBestCandidateMRNA}
+                                    </span>
                                 </span>
                             {/if}
                         {/if}
