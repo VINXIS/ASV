@@ -104,7 +104,10 @@
                 const translation = canonicalTranscript?.Translation;
                 if (canonicalTranscript) {
                     try {
-                        canonicalMRNA = await Promise.all(canonicalTranscript.Exon.map(exon => getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand))).then(sequences => sequences.join(""));
+                        canonicalMRNA = "";
+                        for (const exon of canonicalTranscript.Exon) {
+                            canonicalMRNA += await getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand);
+                        }
                     } catch (e) {
                         console.error("Failed to fetch canonical mRNA sequence:", e);
                         canonicalMRNA = null;
@@ -191,7 +194,15 @@
                 inclusionBestCandidateCDS = canonicalCDS;
                 inclusionBestCandidateMRNA = canonicalMRNA;
             } else if (inclusionBestCandidate) {
-                inclusionBestCandidateMRNA = await Promise.all(inclusionBestCandidate.Exon.map(exon => getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand))).then(sequences => sequences.join(""));
+                try {
+                    inclusionBestCandidateMRNA = "";
+                    for (const exon of inclusionBestCandidate.Exon) {
+                        inclusionBestCandidateMRNA += await getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand)
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch inclusion best candidate mRNA sequence:", err);
+                    inclusionBestCandidateMRNA = null;
+                }
                 if (inclusionBestCandidate.Translation) {
                     getSequenceRegion(
                         inclusionBestCandidate.seq_region_name,
@@ -211,7 +222,15 @@
                 skippedBestCandidateCDS = canonicalCDS;
                 skippedBestCandidateMRNA = canonicalMRNA;
             } else if (skippedBestCandidate) {
-                skippedBestCandidateMRNA = await Promise.all(skippedBestCandidate.Exon.map(exon => getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand))).then(sequences => sequences.join(""));
+                try {
+                    skippedBestCandidateMRNA = "";
+                    for (const exon of skippedBestCandidate.Exon) {
+                        skippedBestCandidateMRNA += await getSequenceRegion(geneInfo!.seq_region_name, exon.start, exon.end, geneInfo!.strand);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch skipped best candidate mRNA sequence:", err);
+                    skippedBestCandidateMRNA = null;
+                }
                 if (skippedBestCandidate.Translation) {
                     getSequenceRegion(
                         skippedBestCandidate.seq_region_name,
