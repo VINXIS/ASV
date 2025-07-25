@@ -6,6 +6,7 @@ import Transcriptome from "../components/transcriptome.svelte";
 import StrainComparer from "../components/strainComparer.svelte";
 import SelectedEvent from "../components/selectedEvent.svelte";
 import Tooltip from "../components/tooltip.svelte";
+import ThemeCustomizer from "../components/themeCustomizer.svelte";
 ---
 
 <html lang="en">
@@ -16,29 +17,12 @@ import Tooltip from "../components/tooltip.svelte";
 		<meta name="generator" content={Astro.generator} />
 		<link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&display=swap" rel="stylesheet">
 		<title>Alternative Splicing Visualizer</title>
-		<script>
-			let root = document.querySelector(":root")!;
-			let button = document.getElementById("dark-mode-toggle")!;
-			if (localStorage.getItem("dark-mode") === "true")
-				root.classList.add("dark");
-			else
-				root.classList.remove("dark");
-			button.addEventListener('click', () => {
-				if (root.classList.contains("dark")) {
-					localStorage.setItem("dark-mode", "false");
-					root.classList.remove("dark");
-				} else {
-					localStorage.setItem("dark-mode", "true");
-					root.classList.add("dark");
-				}
-			});
-		</script>
 	</head>
 	<body>
 		<h1>ASV | <a href="https://github.com/VINXIS/ASV">GitHub</a></h1>
 		<h2>Alternative Splicing Visualizer</h2>
 		<p><small>Transcript and Seq Data for a given gene/event is fetched <a href="https://rest.ensembl.org/">Ensembl</a></small></p>
-		<button class="button" id="dark-mode-toggle">Toggle Dark Mode</button>
+		<ThemeCustomizer client:only="svelte" />
 		<Submit client:only="svelte" />
 		<Settings client:only="svelte" />
 		<Transcriptome client:only="svelte" />

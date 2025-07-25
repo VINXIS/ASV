@@ -1,40 +1,167 @@
 :root {
-    color-scheme: light;
+    /* Theme Variables */
+    --primary-color: #2563eb;
+    --secondary-color: #64748b;
     --background-colour: #ffffff;
-    --background-colour-secondary: #f0f0f0;
-    --background-colour-tertiary: #e0e0e0;
-}
-.dark {
-    color-scheme: dark;
-    --background-colour: #1b1a21;
-    --background-colour-secondary: #2c2b33;
-    --background-colour-tertiary: #3c3b43;
+    --background-colour-secondary: #f8fafc;
+    --background-colour-tertiary: #e2e8f0;
+    --text-color: #1e293b;
+    --text-color-secondary: #64748b;
+    --accent-color: #06b6d4;
+    --border-color: #e2e8f0;
+    --font-family: 'Inconsolata', monospace;
+    --font-size: 14px;
+    --font-weight: 300;
+    --line-height: 1.5;
+    --spacing: 1rem;
+    --border-radius: 0.375rem;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --link-color: #2563eb;
+    --button-color: #2563eb;
 }
 
 * {
-    font-family: "Inconsolata", monospace;
+    font-family: var(--font-family);
     font-optical-sizing: auto;
-    font-weight: 300;
+    font-weight: var(--font-weight);
     font-style: normal;
-    font-variation-settings:
-        "wdth" 100;
+    font-variation-settings: "wdth" 100;
+    font-size: var(--font-size);
+    line-height: var(--line-height);
+}
+
+body {
+    margin: 0;
+    padding: var(--spacing);
+    background-color: var(--background-colour);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-color);
+    margin: calc(var(--spacing) * 0.5) 0;
+}
+
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    opacity: 0.8;
 }
 
 strong {
     font-weight: 900;
 }
 
-body {
-    margin: 0;
-    padding: 20px;
-}
-
 label {
     margin-right: 10px;
     font-weight: bold;
+    color: var(--text-color);
 }
 
-select {
-    padding: 5px;
+select, input[type="text"], input[type="number"], input[type="file"] {
+    padding: calc(var(--spacing) * 0.3);
     min-width: 150px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--background-colour);
+    color: var(--text-color);
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+}
+
+select:focus, input:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.button, button {
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    padding: calc(var(--spacing) * 0.5) var(--spacing);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.button:hover, button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.button:active, button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px var(--shadow-color);
+}
+
+/* Component styling using theme variables */
+.panel, .card {
+    background-color: var(--background-colour-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing);
+    margin: calc(var(--spacing) * 0.5) 0;
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.secondary-text {
+    color: var(--text-color-secondary);
+}
+
+.accent {
+    color: var(--accent-color);
+}
+
+/* Form styling */
+fieldset {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing);
+    margin: calc(var(--spacing) * 0.5) 0;
+    background-color: var(--background-colour-secondary);
+}
+
+legend {
+    color: var(--primary-color);
+    font-weight: 600;
+    padding: 0 calc(var(--spacing) * 0.5);
+}
+
+/* Table styling */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: var(--background-colour);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+th, td {
+    padding: calc(var(--spacing) * 0.5);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    background-color: var(--background-colour-secondary);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: var(--background-colour-secondary);
+}
+
+tr:hover {
+    background-color: var(--background-colour-tertiary);
 }

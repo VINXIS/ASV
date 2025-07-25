@@ -65,10 +65,9 @@
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Check if root has light or dark mode
-        let root = document.querySelector(":root")!;
-        const textColour = root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e";
-        const boxColour = root.classList.contains("dark") ? "#1e1e1e" : "#fbfbfe";
+        // Get colors from CSS custom properties
+        const textColour = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#1e1e1e';
+        const boxColour = getComputedStyle(document.documentElement).getPropertyValue('--background-colour').trim() || '#ffffff';
         
         // Clear canvas
         const width = canvas.width;

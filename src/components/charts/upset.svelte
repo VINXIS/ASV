@@ -27,17 +27,23 @@
         sets.sort((a, b) => b.elems.length - a.elems.length);
         // @ts-ignore
         combinations.sort((a, b) => a.elems.length - b.elems.length);
-        // Check if root has light or dark mode
-        let root = document.querySelector(":root")!;
-        // const textColour = root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e";
+        
+        // Get colors from CSS custom properties
+        const backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--background-colour-secondary').trim() || '#f0f0f0';
+        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#1e1e1e';
+        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#2563eb';
+        
+        // Determine theme based on background color brightness
+        const isDark = backgroundColor.includes('#') && parseInt(backgroundColor.slice(1), 16) < 0x808080;
+        
         renderUpSet(div, {
             sets,
             combinations,
             width,
             height,
-            theme: root.classList.contains("dark") ? "dark" : "light",
-            alternatingBackgroundColor: root.classList.contains("dark") ? "#2c2c2c" : "#f0f0f0",
-            hoverHintColor: root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e",
+            theme: isDark ? "dark" : "light",
+            alternatingBackgroundColor: backgroundColor,
+            hoverHintColor: textColor,
             fontSizes: {
                 axisTick: "12px",
                 barLabel: "12px",

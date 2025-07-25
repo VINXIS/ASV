@@ -291,9 +291,8 @@
             return;
         }
 
-        // Check if root has light or dark mode
-        let root = document.querySelector(":root")!;
-        const textColour = root.classList.contains("dark") ? "#fbfbfe" : "#1e1e1e";
+        // Get text color from CSS custom property
+        const textColour = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#1e1e1e';
 
         const exons = getSplicingExons(selectedEvent.event);
         if (!exons.length) return;
