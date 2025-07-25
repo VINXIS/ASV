@@ -40,11 +40,11 @@
 		accentColor: '#06b6d4',
 		borderColor: '#e2e8f0',
 		fontFamily: 'Inconsolata, monospace',
-		fontSize: '14px',
+		fontSize: '14',
 		fontWeight: '300',
 		lineHeight: '1.5',
-		spacing: '1rem',
-		borderRadius: '0.375rem',
+		spacing: '1',
+		borderRadius: '6',
 		shadowColor: 'rgba(0, 0, 0, 0.1)',
 		linkColor: '#2563eb',
 		buttonColor: '#2563eb'
@@ -61,11 +61,11 @@
 		accentColor: '#06b6d4',
 		borderColor: '#334155',
 		fontFamily: 'Inconsolata, monospace',
-		fontSize: '14px',
+		fontSize: '14',
 		fontWeight: '300',
 		lineHeight: '1.5',
-		spacing: '1rem',
-		borderRadius: '0.375rem',
+		spacing: '1',
+		borderRadius: '6',
 		shadowColor: 'rgba(0, 0, 0, 0.3)',
 		linkColor: '#60a5fa',
 		buttonColor: '#3b82f6'
@@ -101,11 +101,11 @@
 		root.style.setProperty('--accent-color', currentTheme.accentColor);
 		root.style.setProperty('--border-color', currentTheme.borderColor);
 		root.style.setProperty('--font-family', currentTheme.fontFamily);
-		root.style.setProperty('--font-size', currentTheme.fontSize);
+		root.style.setProperty('--font-size', currentTheme.fontSize + 'px');
 		root.style.setProperty('--font-weight', currentTheme.fontWeight);
 		root.style.setProperty('--line-height', currentTheme.lineHeight);
-		root.style.setProperty('--spacing', currentTheme.spacing);
-		root.style.setProperty('--border-radius', currentTheme.borderRadius);
+		root.style.setProperty('--spacing', currentTheme.spacing + 'rem');
+		root.style.setProperty('--border-radius', currentTheme.borderRadius + 'px');
 		root.style.setProperty('--shadow-color', currentTheme.shadowColor);
 		root.style.setProperty('--link-color', currentTheme.linkColor);
 		root.style.setProperty('--button-color', currentTheme.buttonColor);
@@ -237,7 +237,11 @@
 						</label>
 						<label>
 							Font Size:
-							<input type="range" min="10" max="24" bind:value={currentTheme.fontSize} on:input={handleThemeChange}>
+							<input type="range" min="10" max="24" value={currentTheme.fontSize} on:input={(e) => {
+								const target = e.target as HTMLInputElement;
+								currentTheme.fontSize = target.value;
+								handleThemeChange();
+							}}>
 							<span>{currentTheme.fontSize}px</span>
 						</label>
 						<label>
@@ -256,7 +260,11 @@
 						</label>
 						<label>
 							Line Height:
-							<input type="range" min="1" max="2" step="0.1" bind:value={currentTheme.lineHeight} on:input={handleThemeChange}>
+							<input type="range" min="1" max="2" step="0.1" value={currentTheme.lineHeight} on:input={(e) => {
+								const target = e.target as HTMLInputElement;
+								currentTheme.lineHeight = target.value;
+								handleThemeChange();
+							}}>
 							<span>{currentTheme.lineHeight}</span>
 						</label>
 					</div>
@@ -267,12 +275,20 @@
 					<div class="controls-grid">
 						<label>
 							Base Spacing:
-							<input type="range" min="0.5" max="3" step="0.25" bind:value={currentTheme.spacing} on:input={handleThemeChange}>
+							<input type="range" min="0.5" max="3" step="0.25" value={currentTheme.spacing} on:input={(e) => {
+								const target = e.target as HTMLInputElement;
+								currentTheme.spacing = target.value;
+								handleThemeChange();
+							}}>
 							<span>{currentTheme.spacing}rem</span>
 						</label>
 						<label>
 							Border Radius:
-							<input type="range" min="0" max="20" bind:value={currentTheme.borderRadius} on:input={handleThemeChange}>
+							<input type="range" min="0" max="20" value={currentTheme.borderRadius} on:input={(e) => {
+								const target = e.target as HTMLInputElement;
+								currentTheme.borderRadius = target.value;
+								handleThemeChange();
+							}}>
 							<span>{currentTheme.borderRadius}px</span>
 						</label>
 					</div>
