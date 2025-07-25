@@ -29,6 +29,29 @@
 		buttonColor: string;
 	}
 
+	// Font definitions with Google Fonts support
+	const fontOptions = [
+		{ name: 'Inconsolata (default)', value: 'Inconsolata, monospace', googleFont: 'Inconsolata:wght@200;300;400;500;600;700;800;900' },
+		{ name: 'Inter', value: 'Inter, sans-serif', googleFont: 'Inter:wght@100;200;300;400;500;600;700;800;900' },
+		{ name: 'Roboto', value: 'Roboto, sans-serif', googleFont: 'Roboto:wght@100;300;400;500;700;900' },
+		{ name: 'Open Sans', value: 'Open Sans, sans-serif', googleFont: 'Open+Sans:wght@300;400;500;600;700;800' },
+		{ name: 'Lato', value: 'Lato, sans-serif', googleFont: 'Lato:wght@100;300;400;700;900' },
+		{ name: 'Poppins', value: 'Poppins, sans-serif', googleFont: 'Poppins:wght@100;200;300;400;500;600;700;800;900' },
+		{ name: 'Source Sans Pro', value: 'Source Sans Pro, sans-serif', googleFont: 'Source+Sans+Pro:wght@200;300;400;600;700;900' },
+		{ name: 'Nunito', value: 'Nunito, sans-serif', googleFont: 'Nunito:wght@200;300;400;500;600;700;800;900' },
+		{ name: 'Montserrat', value: 'Montserrat, sans-serif', googleFont: 'Montserrat:wght@100;200;300;400;500;600;700;800;900' },
+		{ name: 'Fira Code', value: 'Fira Code, monospace', googleFont: 'Fira+Code:wght@300;400;500;600;700' },
+		{ name: 'JetBrains Mono', value: 'JetBrains Mono, monospace', googleFont: 'JetBrains+Mono:wght@100;200;300;400;500;600;700;800' },
+		{ name: 'Source Code Pro', value: 'Source Code Pro, monospace', googleFont: 'Source+Code+Pro:wght@200;300;400;500;600;700;800;900' },
+		{ name: 'Playfair Display', value: 'Playfair Display, serif', googleFont: 'Playfair+Display:wght@400;500;600;700;800;900' },
+		{ name: 'Merriweather', value: 'Merriweather, serif', googleFont: 'Merriweather:wght@300;400;700;900' },
+		{ name: 'Crimson Text', value: 'Crimson Text, serif', googleFont: 'Crimson+Text:wght@400;600;700' },
+		{ name: 'Arial', value: 'Arial, sans-serif', googleFont: null },
+		{ name: 'Georgia', value: 'Georgia, serif', googleFont: null },
+		{ name: 'Courier New', value: 'Courier New, monospace', googleFont: null },
+		{ name: 'Times New Roman', value: 'Times New Roman, serif', googleFont: null },
+	];
+
 	const defaultTheme: ThemeConfig = {
 		primaryColor: '#2563eb',
 		secondaryColor: '#64748b',
@@ -74,6 +97,8 @@
 	let currentTheme: ThemeConfig = { ...defaultTheme };
 	let isExpanded = false;
 
+	let loadedFonts = new Set<string>();
+
 	onMount(() => {
 		// Load saved theme from localStorage
 		const saved = localStorage.getItem('custom-theme');
@@ -84,6 +109,13 @@
 				console.warn('Failed to parse saved theme, using default');
 			}
 		}
+		
+		// Load the current font if it's a Google Font
+		const currentFontOption = fontOptions.find(opt => opt.value === currentTheme.fontFamily);
+		if (currentFontOption) {
+			loadGoogleFont(currentFontOption);
+		}
+		
 		applyTheme();
 	});
 
@@ -148,6 +180,38 @@
 				}
 			};
 			reader.readAsText(file);
+		}
+	}
+
+	function loadGoogleFont(fontOption: typeof fontOptions[0]) {
+		if (!fontOption.googleFont || loadedFonts.has(fontOption.googleFont)) {
+			return;
+		}
+
+		// Check if font link already exists
+		const existingLink = document.querySelector(`link[href*="${fontOption.googleFont}"]`);
+		if (existingLink) {
+			loadedFonts.add(fontOption.googleFont);
+			return;
+		}
+
+		// Create and append Google Fonts link
+		const link = document.createElement('link');
+		link.rel = 'stylesheet';
+		link.href = `https://fonts.googleapis.com/css2?family=${fontOption.googleFont}&display=swap`;
+		document.head.appendChild(link);
+		
+		loadedFonts.add(fontOption.googleFont);
+	}
+
+	function handleFontChange(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		const selectedOption = fontOptions.find(opt => opt.value === target.value);
+		
+		if (selectedOption) {
+			loadGoogleFont(selectedOption);
+			currentTheme.fontFamily = selectedOption.value;
+			handleThemeChange();
 		}
 	}
 </script>
@@ -225,14 +289,10 @@
 					<div class="controls-grid">
 						<label>
 							Font Family:
-							<select bind:value={currentTheme.fontFamily} on:change={handleThemeChange}>
-								<option value="Inconsolata, monospace">Inconsolata (current)</option>
-								<option value="Inter, sans-serif">Inter</option>
-								<option value="Roboto, sans-serif">Roboto</option>
-								<option value="Arial, sans-serif">Arial</option>
-								<option value="Georgia, serif">Georgia</option>
-								<option value="'Courier New', monospace">Courier New</option>
-								<option value="'Times New Roman', serif">Times New Roman</option>
+							<select bind:value={currentTheme.fontFamily} on:change={handleFontChange}>
+								{#each fontOptions as font}
+									<option value={font.value}>{font.name}</option>
+								{/each}
 							</select>
 						</label>
 						<label>
