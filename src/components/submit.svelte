@@ -12,6 +12,7 @@
     let successMessage = "";
     let exportProgress = "";
     let strainCount = getStrainLength();
+    let strainList = getBasicStrainInfo();
     
     const filePattern = /\.(MATS\.JCEC\.txt)$/i;
 
@@ -257,6 +258,7 @@
         }
 
         strainCount = getStrainLength();
+        strainList = getBasicStrainInfo();
         isLoading = false;
     }
 
@@ -402,7 +404,7 @@
     {#if strainCount > 0}
         <h3>Loaded Strains:</h3>
         <ul>
-            {#each getBasicStrainInfo() as strain}
+            {#each strainList as strain}
                 {#if strain.visible}
                     <li>{strain.name}</li>
                 {:else}
