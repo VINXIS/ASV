@@ -214,6 +214,87 @@
 			handleThemeChange();
 		}
 	}
+
+	function resetColorsToDefault() {
+		currentTheme.primaryColor = defaultTheme.primaryColor;
+		currentTheme.secondaryColor = defaultTheme.secondaryColor;
+		currentTheme.backgroundColor = defaultTheme.backgroundColor;
+		currentTheme.backgroundColorSecondary = defaultTheme.backgroundColorSecondary;
+		currentTheme.backgroundColorTertiary = defaultTheme.backgroundColorTertiary;
+		currentTheme.textColor = defaultTheme.textColor;
+		currentTheme.textColorSecondary = defaultTheme.textColorSecondary;
+		currentTheme.accentColor = defaultTheme.accentColor;
+		currentTheme.borderColor = defaultTheme.borderColor;
+		currentTheme.linkColor = defaultTheme.linkColor;
+		currentTheme.buttonColor = defaultTheme.buttonColor;
+		currentTheme.shadowColor = defaultTheme.shadowColor;
+		handleThemeChange();
+	}
+
+	function resetTypographyToDefault() {
+		const selectedOption = fontOptions.find(opt => opt.value === defaultTheme.fontFamily);
+		if (selectedOption) {
+			loadGoogleFont(selectedOption);
+		}
+		currentTheme.fontFamily = defaultTheme.fontFamily;
+		currentTheme.fontSize = defaultTheme.fontSize;
+		currentTheme.fontWeight = defaultTheme.fontWeight;
+		currentTheme.lineHeight = defaultTheme.lineHeight;
+		handleThemeChange();
+	}
+
+	function resetLayoutToDefault() {
+		currentTheme.spacing = defaultTheme.spacing;
+		currentTheme.borderRadius = defaultTheme.borderRadius;
+		handleThemeChange();
+	}
+
+	// Helper functions to check if sections have been modified
+	function hasColorsChanged(): boolean {
+		return currentTheme.primaryColor !== defaultTheme.primaryColor ||
+			   currentTheme.secondaryColor !== defaultTheme.secondaryColor ||
+			   currentTheme.backgroundColor !== defaultTheme.backgroundColor ||
+			   currentTheme.backgroundColorSecondary !== defaultTheme.backgroundColorSecondary ||
+			   currentTheme.backgroundColorTertiary !== defaultTheme.backgroundColorTertiary ||
+			   currentTheme.textColor !== defaultTheme.textColor ||
+			   currentTheme.textColorSecondary !== defaultTheme.textColorSecondary ||
+			   currentTheme.accentColor !== defaultTheme.accentColor ||
+			   currentTheme.borderColor !== defaultTheme.borderColor ||
+			   currentTheme.linkColor !== defaultTheme.linkColor ||
+			   currentTheme.buttonColor !== defaultTheme.buttonColor ||
+			   currentTheme.shadowColor !== defaultTheme.shadowColor;
+	}
+
+	function hasTypographyChanged(): boolean {
+		return currentTheme.fontFamily !== defaultTheme.fontFamily ||
+			   currentTheme.fontSize !== defaultTheme.fontSize ||
+			   currentTheme.fontWeight !== defaultTheme.fontWeight ||
+			   currentTheme.lineHeight !== defaultTheme.lineHeight;
+	}
+
+	function hasLayoutChanged(): boolean {
+		return currentTheme.spacing !== defaultTheme.spacing ||
+			   currentTheme.borderRadius !== defaultTheme.borderRadius;
+	}
+
+	// Helper functions to check individual property changes
+	function hasPropertyChanged(property: keyof ThemeConfig): boolean {
+		return currentTheme[property] !== defaultTheme[property];
+	}
+
+	function resetProperty(property: keyof ThemeConfig) {
+		(currentTheme as any)[property] = (defaultTheme as any)[property];
+		
+		// If resetting font family, load the default font
+		if (property === 'fontFamily') {
+			const selectedOption = fontOptions.find(opt => opt.value === defaultTheme.fontFamily);
+			if (selectedOption) {
+				loadGoogleFont(selectedOption);
+			}
+		}
+		
+		handleThemeChange();
+	}
 </script>
 
 <div class="theme-customizer">
@@ -240,48 +321,84 @@
 						<label>
 							Primary Color:
 							<input type="color" bind:value={currentTheme.primaryColor} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('primaryColor')}
+								<button class="property-reset-btn" on:click={() => resetProperty('primaryColor')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Secondary Color:
 							<input type="color" bind:value={currentTheme.secondaryColor} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('secondaryColor')}
+								<button class="property-reset-btn" on:click={() => resetProperty('secondaryColor')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Background:
 							<input type="color" bind:value={currentTheme.backgroundColor} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('backgroundColor')}
+								<button class="property-reset-btn" on:click={() => resetProperty('backgroundColor')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Background Secondary:
 							<input type="color" bind:value={currentTheme.backgroundColorSecondary} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('backgroundColorSecondary')}
+								<button class="property-reset-btn" on:click={() => resetProperty('backgroundColorSecondary')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Background Tertiary:
 							<input type="color" bind:value={currentTheme.backgroundColorTertiary} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('backgroundColorTertiary')}
+								<button class="property-reset-btn" on:click={() => resetProperty('backgroundColorTertiary')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Text Color:
 							<input type="color" bind:value={currentTheme.textColor} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('textColor')}
+								<button class="property-reset-btn" on:click={() => resetProperty('textColor')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Text Secondary:
 							<input type="color" bind:value={currentTheme.textColorSecondary} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('textColorSecondary')}
+								<button class="property-reset-btn" on:click={() => resetProperty('textColorSecondary')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Accent Color:
 							<input type="color" bind:value={currentTheme.accentColor} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('accentColor')}
+								<button class="property-reset-btn" on:click={() => resetProperty('accentColor')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Border Color:
 							<input type="color" bind:value={currentTheme.borderColor} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('borderColor')}
+								<button class="property-reset-btn" on:click={() => resetProperty('borderColor')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Link Color:
 							<input type="color" bind:value={currentTheme.linkColor} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('linkColor')}
+								<button class="property-reset-btn" on:click={() => resetProperty('linkColor')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Button Color:
 							<input type="color" bind:value={currentTheme.buttonColor} on:input={handleThemeChange}>
+							{#if hasPropertyChanged('buttonColor')}
+								<button class="property-reset-btn" on:click={() => resetProperty('buttonColor')}>↺</button>
+							{/if}
 						</label>
 					</div>
+					{#if hasColorsChanged()}
+						<button class="reset-btn" on:click={resetColorsToDefault}>Reset to Default</button>
+					{/if}
 				</details>
 
 				<details>
@@ -294,6 +411,9 @@
 									<option value={font.value}>{font.name}</option>
 								{/each}
 							</select>
+							{#if hasPropertyChanged('fontFamily')}
+								<button class="property-reset-btn" on:click={() => resetProperty('fontFamily')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Font Size:
@@ -303,6 +423,9 @@
 								handleThemeChange();
 							}}>
 							<span>{currentTheme.fontSize}px</span>
+							{#if hasPropertyChanged('fontSize')}
+								<button class="property-reset-btn" on:click={() => resetProperty('fontSize')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Font Weight:
@@ -317,6 +440,9 @@
 								<option value="800">800 - Extra Bold</option>
 								<option value="900">900 - Black</option>
 							</select>
+							{#if hasPropertyChanged('fontWeight')}
+								<button class="property-reset-btn" on:click={() => resetProperty('fontWeight')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Line Height:
@@ -326,8 +452,14 @@
 								handleThemeChange();
 							}}>
 							<span>{currentTheme.lineHeight}</span>
+							{#if hasPropertyChanged('lineHeight')}
+								<button class="property-reset-btn" on:click={() => resetProperty('lineHeight')}>↺</button>
+							{/if}
 						</label>
 					</div>
+					{#if hasTypographyChanged()}
+						<button class="reset-btn" on:click={resetTypographyToDefault}>Reset to Default</button>
+					{/if}
 				</details>
 
 				<details>
@@ -341,6 +473,9 @@
 								handleThemeChange();
 							}}>
 							<span>{currentTheme.spacing}rem</span>
+							{#if hasPropertyChanged('spacing')}
+								<button class="property-reset-btn" on:click={() => resetProperty('spacing')}>↺</button>
+							{/if}
 						</label>
 						<label>
 							Border Radius:
@@ -350,8 +485,14 @@
 								handleThemeChange();
 							}}>
 							<span>{currentTheme.borderRadius}px</span>
+							{#if hasPropertyChanged('borderRadius')}
+								<button class="property-reset-btn" on:click={() => resetProperty('borderRadius')}>↺</button>
+							{/if}
 						</label>
 					</div>
+					{#if hasLayoutChanged()}
+						<button class="reset-btn" on:click={resetLayoutToDefault}>Reset to Default</button>
+					{/if}
 				</details>
 			</div>
 		</div>
@@ -459,5 +600,26 @@
 
 	summary:hover {
 		color: var(--primary-color, #2563eb);
+	}
+
+	.reset-btn {
+		background: transparent;
+		color: var(--primary-color, #2563eb);
+		border: none;
+		cursor: pointer;
+		font-size: 12px;
+		margin-top: 8px;
+		padding: 0;
+		text-align: left;
+	}
+
+	.property-reset-btn {
+		background: transparent;
+		color: var(--primary-color, #2563eb);
+		border: none;
+		cursor: pointer;
+		font-size: 12px;
+		padding: 0;
+		margin-left: 8px;
 	}
 </style>
