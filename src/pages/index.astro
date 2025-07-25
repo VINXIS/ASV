@@ -7,6 +7,15 @@ import StrainComparer from "../components/strainComparer.svelte";
 import SelectedEvent from "../components/selectedEvent.svelte";
 import Tooltip from "../components/tooltip.svelte";
 import ThemeCustomizer from "../components/themeCustomizer.svelte";
+import { execSync } from 'child_process';
+
+let currentCommit = '';
+try {
+	currentCommit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+} catch (error) {
+	console.warn('Could not get git commit hash:', error);
+	currentCommit = 'unknown';
+}
 ---
 
 <html lang="en">
@@ -22,6 +31,7 @@ import ThemeCustomizer from "../components/themeCustomizer.svelte";
 		<h1>ASV | <a href="https://github.com/VINXIS/ASV">GitHub</a></h1>
 		<h2>Alternative Splicing Visualizer</h2>
 		<p><small>Transcript and Seq Data for a given gene/event is fetched <a href="https://rest.ensembl.org/">Ensembl</a></small></p>
+		<p><small>Current version: <a href={`https://github.com/VINXIS/ASV/commit/${currentCommit}`}>{currentCommit}</a></small></p>
 		<ThemeCustomizer client:only="svelte" />
 		<Submit client:only="svelte" />
 		<Settings client:only="svelte" />
