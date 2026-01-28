@@ -5,6 +5,8 @@ export const settings: {
     selectedChr: string;
     selectedEventType: "All" | EventType;
 
+    selectedGtfId: string;
+
     readCountThresh: number;
     FDRThresh: number;
     psiDiffThresh: number;
@@ -13,6 +15,8 @@ export const settings: {
     selectedSpecies: "homo_sapiens",
     selectedChr: "All",
     selectedEventType: "All",
+
+    selectedGtfId: "",
 
     readCountThresh: 10,
     FDRThresh: 0.05,

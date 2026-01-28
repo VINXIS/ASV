@@ -1,14 +1,18 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { getSpeciesList, type EnsemblSpecies } from "./states/ensembl";
+    import { getGtfList, importLocalGtf, type GtfInfo } from "./states/gtf";
     import { setSelectedEvent } from "./states/selectedEvent";
     import { settings } from "./states/settings";
-    import { getChromosomeList, getFilteredStrains, getStrainLength, strainEventEmitter, updateFilteredStrains, updateSelectFilteredStrains, type Event } from "./states/strains";
+    import { getChromosomeList, getFilteredStrains, getStrainLength, strainEventEmitter, updateFilteredStrains, updateSelectFilteredStrains, type Event as ASEvent } from "./states/strains";
 
     let speciesList: EnsemblSpecies[] = [];
+    let gtfList: GtfInfo[] = [];
+    let gtfError = "";
+    let gtfImportMsg = "";
     let geneSearch = "";
     let results: {
-        event: Event;
+        event: ASEvent;
         strain: {
             name: string;
             colour: string;
@@ -39,12 +43,36 @@
         settings.selectedChr = "All";
         settings.selectedEventType = "All";
 
+        settings.selectedGtfId = "";
+
         settings.readCountThresh = 10;
         settings.FDRThresh = 0.05;
         settings.psiDiffThresh = 0.2;
         settings.extraneousPsiLimits = false;
 
         updateSelectFilteredStrains();
+    }
+
+    async function handleGtfImport(event: globalThis.Event) {
+        gtfImportMsg = "";
+        gtfError = "";
+
+        const input = event.currentTarget as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) return;
+
+        try {
+            const content = await file.text();
+            const filenameBase = file.name.replace(/\.(gtf|gtf\.gz)$/i, "");
+            const { uploadId, filename } = await importLocalGtf({ filenameBase, content });
+            settings.selectedGtfId = uploadId;
+            gtfImportMsg = `Loaded temporary GTF for this session: ${filename}`;
+        } catch (e: any) {
+            console.error(e);
+            gtfError = e?.message ?? "Failed to import GTF";
+        } finally {
+            input.value = "";
+        }
     }
 
     function searchGene() {
@@ -61,7 +89,7 @@
     }
 
     function select(gene: {
-        event: Event;
+        event: ASEvent;
         strain: {
             name: string;
             colour: string;
@@ -84,6 +112,15 @@
     onMount(async () => {
         speciesList = await getSpeciesList();
         speciesList.sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+        try {
+            gtfList = await getGtfList();
+            gtfList.sort((a, b) => a.name.localeCompare(b.name));
+        } catch (e) {
+            console.error(e);
+            gtfError = "Failed to load server GTF list";
+            gtfList = [];
+        }
     })
 
 </script>
@@ -134,6 +171,32 @@
                     <option value={species.name}>{species.display_name} ({species.name}/{species.assembly})</option>
                 {/each}
             </select>  
+        </div>
+
+        <div class="control-group">
+            <label for="gtf">Server GTF Annotation:</label>
+            <select id="gtf" bind:value={settings.selectedGtfId}>
+                <option value="">None (Ensembl only)</option>
+                {#if settings.selectedGtfId && settings.selectedGtfId.startsWith("session_")}
+                    <option value={settings.selectedGtfId}>Uploaded (this session)</option>
+                {/if}
+                {#each gtfList as gtf}
+                    <option value={gtf.id}>
+                        {gtf.name}{gtf.species ? ` (${gtf.species}${gtf.assembly ? `/${gtf.assembly}` : ""})` : ""}
+                    </option>
+                {/each}
+            </select>
+
+            <div style="margin-top: 6px;">
+                <label for="gtf-import">Import local GTF (optional):</label>
+                <input id="gtf-import" type="file" accept=".gtf" onchange={handleGtfImport} />
+                {#if gtfImportMsg}
+                    <div class="info">{gtfImportMsg}</div>
+                {/if}
+                {#if gtfError}
+                    <div class="error">{gtfError}</div>
+                {/if}
+            </div>
         </div>
 
         <div class="control-group">
@@ -259,5 +322,18 @@
 
     .result-item:hover {
         background-color: var(--background-colour-tertiary);
+    }
+
+    .error {
+        margin-top: 6px;
+        color: #db4437;
+        font-size: 12px;
+    }
+
+    .info {
+        margin-top: 6px;
+        color: var(--text-color);
+        font-size: 12px;
+        opacity: 0.85;
     }
 </style>
